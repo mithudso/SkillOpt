@@ -39,7 +39,8 @@ def test_grade_judge_parses_and_clamps(monkeypatch):
 
 
 def test_run_batch_writes_conversations(tmp_path, monkeypatch):
-    monkeypatch.setattr(rollout_mod, "chat_target", lambda **kw: ("Paris", {}))
+    sent = []
+    monkeypatch.setattr(rollout_mod, "chat_target", lambda **kw: (sent.append(kw["user"]) or "Paris", {}))
     items = [normalize_item({"id": "t1", "input": "Capital of France?", "expected": "Paris"}),
              normalize_item({"id": "t2", "input": "Capital of Spain?", "expected": "Madrid"})]
     results = rollout_mod.run_batch(items=items, skill_content="# skill", out_root=str(tmp_path))
@@ -47,6 +48,10 @@ def test_run_batch_writes_conversations(tmp_path, monkeypatch):
     assert "fail_reason" in results[1]
     convo = json.loads((tmp_path / "predictions" / "t1" / "conversation.json").read_text())
     assert convo[0] == {"role": "system", "content": "# skill"}
+    assert all(u.startswith("Evaluation setting:") for u in sent)
+    assert results[0]["question"] == "Capital of France?"
+    rollout_mod.run_batch(items=items[:1], skill_content="# s", out_root=str(tmp_path / "b"), answer_preamble="")
+    assert sent[-1] == "Capital of France?"
 
 
 def test_adapter_ratio_split(tmp_path):

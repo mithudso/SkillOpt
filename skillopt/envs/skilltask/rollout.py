@@ -9,6 +9,15 @@ from pathlib import Path
 
 from skillopt.model import chat_optimizer, chat_target
 
+# Exec-capable chat backends (claude_chat runs `claude -p`) give the target an
+# agent harness whose tools are denied. Without this note the target spends its
+# answer on "I can't access files", and reflection learns that harness noise.
+DEFAULT_ANSWER_PREAMBLE = (
+    "Evaluation setting: no tools, files, shell or network are available in this "
+    "conversation. Do not try to run anything or ask for access. Answer in text: "
+    "give the decision or action you would take, and why, following your instructions."
+)
+
 JUDGE_SYSTEM = (
     "You are a strict grader. Score how well RESPONSE satisfies the TASK under "
     "the RUBRIC (and matches EXPECTED when given). Reply with JSON only: "
@@ -56,8 +65,9 @@ def grade(item: dict, prediction: str, *, default_grader: str, pass_threshold: f
 
 
 def _rollout_one(item: dict, skill_content: str, *, prediction_dir: Path, max_completion_tokens: int,
-                 default_grader: str, pass_threshold: float, judge_max_tokens: int) -> dict:
-    user = item["question"]
+                 default_grader: str, pass_threshold: float, judge_max_tokens: int,
+                 answer_preamble: str = DEFAULT_ANSWER_PREAMBLE) -> dict:
+    user = f"{answer_preamble}\n\n{item['question']}" if answer_preamble else item["question"]
     try:
         prediction, _usage = chat_target(system=skill_content, user=user,
                                          max_completion_tokens=max_completion_tokens)
@@ -83,8 +93,8 @@ def _rollout_one(item: dict, skill_content: str, *, prediction_dir: Path, max_co
         "hard": hard,
         "soft": soft,
         "predicted_answer": prediction,
-        "task_description": user,
-        "question": user,
+        "task_description": item["question"],
+        "question": item["question"],
         "reference_text": "\n\n".join(
             part for part in (
                 f"Expected: {item['ground_truth']}" if item.get("ground_truth") else "",
@@ -102,14 +112,16 @@ def _rollout_one(item: dict, skill_content: str, *, prediction_dir: Path, max_co
 
 def run_batch(*, items: list[dict], skill_content: str, out_root: str, workers: int = 4,
               max_completion_tokens: int = 4096, default_grader: str = "auto",
-              pass_threshold: float = 0.7, judge_max_tokens: int = 1024) -> list[dict]:
+              pass_threshold: float = 0.7, judge_max_tokens: int = 1024,
+              answer_preamble: str = DEFAULT_ANSWER_PREAMBLE) -> list[dict]:
     os.makedirs(out_root, exist_ok=True)
     prediction_dir = Path(out_root, "predictions")
 
     def _one(item: dict) -> dict:
         return _rollout_one(item, skill_content, prediction_dir=prediction_dir,
                             max_completion_tokens=max_completion_tokens, default_grader=default_grader,
-                            pass_threshold=pass_threshold, judge_max_tokens=judge_max_tokens)
+                            pass_threshold=pass_threshold, judge_max_tokens=judge_max_tokens,
+                            answer_preamble=answer_preamble)
 
     with ThreadPoolExecutor(max_workers=max(1, int(workers))) as pool:
         results = list(pool.map(_one, items))

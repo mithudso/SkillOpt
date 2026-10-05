@@ -4,7 +4,7 @@ from __future__ import annotations
 from skillopt.datasets.base import BatchSpec
 from skillopt.envs.base import EnvAdapter
 from skillopt.envs.skilltask.dataloader import SkillTaskDataLoader
-from skillopt.envs.skilltask.rollout import run_batch
+from skillopt.envs.skilltask.rollout import DEFAULT_ANSWER_PREAMBLE, run_batch
 
 
 class SkillTaskAdapter(EnvAdapter):
@@ -29,6 +29,7 @@ class SkillTaskAdapter(EnvAdapter):
         grader: str = "auto",
         pass_threshold: float = 0.7,
         judge_max_tokens: int = 1024,
+        answer_preamble: str | None = None,
     ) -> None:
         self.workers = workers
         self.analyst_workers = analyst_workers
@@ -41,6 +42,8 @@ class SkillTaskAdapter(EnvAdapter):
             raise ValueError(f"skilltask grader must be auto|exact|contains|judge, got {grader!r}")
         self.pass_threshold = float(pass_threshold)
         self.judge_max_tokens = int(judge_max_tokens)
+        # None = default note; "" = send the task input unchanged.
+        self.answer_preamble = DEFAULT_ANSWER_PREAMBLE if answer_preamble is None else str(answer_preamble)
         self.dataloader = SkillTaskDataLoader(
             split_dir=split_dir,
             data_path=data_path,
@@ -80,6 +83,7 @@ class SkillTaskAdapter(EnvAdapter):
             default_grader=self.grader,
             pass_threshold=self.pass_threshold,
             judge_max_tokens=self.judge_max_tokens,
+            answer_preamble=self.answer_preamble,
         )
 
     def get_task_types(self) -> list[str]:

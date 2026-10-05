@@ -46,5 +46,9 @@ env:
   grader: auto               # auto | exact | contains | judge
   pass_threshold: 0.7        # judge score counted as a pass
   judge_max_tokens: 1024
+  # Prepended to every task input. Unset = built-in "no tools, answer in text"
+  # note (needed for claude_chat, whose target is a tool-less agent harness).
+  # Set to "" to send inputs unchanged.
+  # answer_preamble: ""
   exec_timeout: 300
   limit: 0
