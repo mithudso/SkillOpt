@@ -1,0 +1,50 @@
+# Generic skill optimization: train any Markdown skill against a task set.
+# Launch with scripts/skillopt_skill.py (it registers the `skilltask` env).
+# Small defaults: skill task sets are usually 20-100 items, not thousands.
+_base_: ../_base_/default.yaml
+
+model:
+  backend: claude_chat        # uses the local `claude` CLI login; no API key
+  optimizer: opus            # override per run with --optimizer_model
+  target: sonnet             # override per run with --target_model
+  reasoning_effort: medium
+
+train:
+  num_epochs: 3
+  batch_size: 8
+  accumulation: 1
+
+gradient:
+  minibatch_size: 4
+  merge_batch_size: 4
+  analyst_workers: 4
+
+optimizer:
+  learning_rate: 3
+  min_learning_rate: 1
+  lr_scheduler: cosine
+  use_slow_update: true
+  slow_update_samples: 8
+  use_meta_skill: true
+
+evaluation:
+  use_gate: true
+  # Skill task sets are small and the judge gives partial credit, so a pure
+  # hard gate stalls (configs/features/soft_gate.yaml). Mixed keeps hard in play.
+  gate_metric: mixed
+  gate_mixed_weight: 0.5
+
+env:
+  name: skilltask
+  skill_init: ""             # path to the stripped SKILL.md body (required)
+  split_mode: ratio
+  data_path: ""              # tasks.jsonl (required)
+  split_ratio: "5:3:2"       # train:val:test
+  split_seed: 42
+  workers: 4
+  max_completion_tokens: 4096
+  grader: auto               # auto | exact | contains | judge
+  pass_threshold: 0.7        # judge score counted as a pass
+  judge_max_tokens: 1024
+  exec_timeout: 300
+  limit: 0

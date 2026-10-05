@@ -1,0 +1,106 @@
+# SkillOpt
+
+> SkillOpt (fork of microsoft/SkillOpt, Python package `skillopt` 0.2.0) trains a Markdown skill document against a frozen target model with a rollout, reflect, edit and validation-gate loop; its companion SkillOpt-Sleep improves skills from past agent sessions behind a held-out gate. This index is for AI agents that must install it, run `skillopt-train`, `skillopt-eval` and `skillopt-sleep`, add an env to optimize any SKILL.md, pick a backend and read results.
+
+How these files fit together: this index links source files by path relative to the repo root. `llms-small.txt` (about 42 KB, 10k tokens) is a dense how-to where every fact ends with a `path:line` cite. `llms-facts.txt` (about 37 KB) holds one fact per line in the form `fact — path:line`, easy to grep for a flag, env var or default. `llms-full.txt` (about 420 KB, 105k tokens) concatenates the key docs, argparse definitions and configs under `# path` block headers. Files marked fork-local exist only in this fork's working tree and may be uncommitted.
+
+<!-- generated 2026-10-05 from commit fa4ca18 (upstream release 0.2.0) plus fork-local working-tree files; token estimate = bytes / 4; verify a cited line against source before relying on it -->
+
+## Quick start
+- [llms-small.txt](llms-small.txt): Cited how-to covering install, every `skillopt-train` and `skillopt-eval` flag, config defaults, the optimize-your-own-SKILL.md recipe, Sleep recipe, outputs, errors.
+- [llms-facts.txt](llms-facts.txt): About 315 one-line facts with `path:line` anchors: flags, env vars such as `AZURE_OPENAI_ENDPOINT`, defaults, output files, constraints.
+- [README.md](README.md): Project overview, backend list (`openai_chat`, `claude_chat`, `openai_compatible`, `codex_exec`), extension points and WebUI launch flags.
+- [docs/guide/installation.md](docs/guide/installation.md): PyPI versus source install, extras like `.[searchqa]`, `.env` export, `AZURE_OPENAI_AUTH_MODE`, verification commands.
+- [docs/guide/first-experiment.md](docs/guide/first-experiment.md): End-to-end SearchQA run: `materialize_searchqa.py`, `scripts/train.py --out_root`, output tree, `scripts/eval_only.py --split valid_unseen`.
+- [.env.example](.env.example): Template of every credential variable per backend: Azure, `OPENAI_COMPATIBLE_*`, `CLAUDE_CLI_BIN`, `QWEN_CHAT_*`, `MINIMAX_*`.
+- [pyproject.toml](pyproject.toml): Version 0.2.0, Python >= 3.10, dependencies, optional extras, and the `skillopt-train`, `skillopt-eval`, `skillopt-sleep` console scripts.
+
+## Training & eval CLI
+- [scripts/train.py](scripts/train.py): `skillopt-train` entry point: required `--config`, `--cfg-options`, all legacy flat flags, backend role resolution, env registry `_ENV_REGISTRY`.
+- [scripts/eval_only.py](scripts/eval_only.py): `skillopt-eval` entry point: `--skill`, `--split` train, valid_seen, valid_unseen or all; writes `eval_summary.json`.
+- [docs/reference/cli.md](docs/reference/cli.md): CLI reference for training, evaluation, `skillopt-sleep` actions and flags, source and backend specifics, WebUI arguments.
+- [scripts/materialize_searchqa.py](scripts/materialize_searchqa.py): Builds runnable `data/searchqa_split` from the ID manifest; flags `--manifest-dir`, `--output-dir`, `--dataset`.
+- [scripts/run_searchqa.sh](scripts/run_searchqa.sh): Wrapper that calls `scripts/train.py` with `OPTIMIZER_MODEL` and `TARGET_MODEL` env defaults and a timestamped output dir.
+
+## Configuration
+- [configs/_base_/default.yaml](configs/_base_/default.yaml): Shipped defaults: `num_epochs: 4`, `batch_size: 40`, `learning_rate: 4`, `lr_scheduler: cosine`, `use_gate: true`, `split_mode: ratio`.
+- [docs/reference/config.md](docs/reference/config.md): Full parameter tables with types and defaults for model, train, gradient, optimizer, evaluation, env and credential variables.
+- [docs/guide/configuration.md](docs/guide/configuration.md): Backend matrix, `--cfg-options` overrides, environment variable table, skill-aware reflection, Copilot and Cursor notes.
+- [skillopt/config.py](skillopt/config.py): `_base_` inheritance, structured-to-flat key map `_FLATTEN_MAP`, override casting, Codex alias handling.
+- [configs/features/soft_gate.yaml](configs/features/soft_gate.yaml): Example of `gate_metric: soft` for small selection splits with continuous rewards.
+- [configs/searchqa/default.yaml](configs/searchqa/default.yaml): Reference benchmark config using `split_mode: split_dir`, `data/searchqa_split`, `workers: 24`.
+- [data/README.md](data/README.md): Split manifest layout, counts per benchmark, which splits are directly usable, materialization notes.
+
+## Skill document format
+- [docs/guide/skill-document.md](docs/guide/skill-document.md): What a skill document is, protected `SLOW_UPDATE` and `APPENDIX` markers, `env.skill_init`, best practices.
+- [docs/guide/training-loop.md](docs/guide/training-loop.md): Rollout, reflect, aggregate, select, update, gate stages plus slow update and meta skill at epoch boundaries.
+- [skillopt/optimizer/skill.py](skillopt/optimizer/skill.py): Edit application: `append`, `insert_after`, `replace`, `delete` as literal-string operations; protected-region skipping.
+- [skillopt/evaluation/gate.py](skillopt/evaluation/gate.py): Validation gate: `accept_new_best`, `accept`, `reject`; `hard`, `soft`, `mixed` metrics; strict improvement rule.
+- [skillopt/envs/searchqa/skills/initial.md](skillopt/envs/searchqa/skills/initial.md): Minimal seed skill example used as `env.skill_init` for SearchQA.
+
+## Custom benchmarks / optimizing your own skill
+- [scripts/skillopt_skill.py](scripts/skillopt_skill.py): Fork-local launcher: `train` or `eval` with the `skilltask` env registered, no edits to `scripts/train.py`.
+- [skillopt/envs/skilltask/rollout.py](skillopt/envs/skilltask/rollout.py): Fork-local grading: `exact`, `contains` or LLM `judge` with `pass_threshold`; calls `chat_target` with the skill as system prompt.
+- [skillopt/envs/skilltask/dataloader.py](skillopt/envs/skilltask/dataloader.py): Fork-local task item fields: `id`, `input`, `expected`, `rubric`, `grader`, `task_type`.
+- [skillopt/envs/skilltask/adapter.py](skillopt/envs/skilltask/adapter.py): Fork-local `SkillTaskAdapter` constructor keys: `grader`, `pass_threshold`, `judge_max_tokens`, `workers`, `split_ratio`.
+- [configs/skilltask/default.yaml](configs/skilltask/default.yaml): Fork-local config for training any skill: `claude_chat` backend, 3 epochs, split `5:3:2`, required `skill_init` and `data_path`.
+- [docs/guide/new-benchmark.md](docs/guide/new-benchmark.md): Step-by-step custom env: loader, rollout with `conversation.json`, adapter, registration in `_register_builtins()`, YAML, error fixes.
+- [skillopt/envs/_template/README.md](skillopt/envs/_template/README.md): How to copy the template dir, rename files, implement TODOs, register and configure a new benchmark.
+- [skillopt/envs/_template/env_template.py](skillopt/envs/_template/env_template.py): Instantiable `EnvAdapter` skeleton with the four abstract methods and constructor kwargs consumed by reflection.
+- [skillopt/envs/_template/loader_template.py](skillopt/envs/_template/loader_template.py): `SplitDataLoader` skeleton with `_normalize_item` and `load_split_items` reading `.json` or `.jsonl` split files.
+- [skillopt/envs/_template/config_template.yaml](skillopt/envs/_template/config_template.yaml): Starting YAML for a new env with `_base_` as a string path.
+- [skillopt/envs/base.py](skillopt/envs/base.py): `EnvAdapter` abstract contract, default `reflect`, prompt lookup order for `analyst_error` and `analyst_success`.
+- [skillopt/datasets/base.py](skillopt/datasets/base.py): `SplitDataLoader`: `split_dir` and `ratio` modes, `_generated_splits`, split name aliases `valid_seen` and `valid_unseen`.
+- [docs/guide/local-env-smoke.md](docs/guide/local-env-smoke.md): Credential-free smoke test pattern with a `mock: true` env and tiny config.
+- [docs/reference/api.md](docs/reference/api.md): Public classes `EnvAdapter`, `SplitDataLoader`, `BatchSpec`, `Edit`, `Patch`, `RolloutResult` and registration notes.
+
+## Backends
+- [docs/guide/new-backend.md](docs/guide/new-backend.md): Generic `openai_compatible` backend for DeepSeek, Groq, Ollama, vLLM; module contract and registration steps for a new backend.
+- [skillopt/model/backend_config.py](skillopt/model/backend_config.py): Optimizer and target backend whitelists, Codex/Claude Code/Cursor/Copilot exec settings and their environment variables.
+- [skillopt/model/common.py](skillopt/model/common.py): Backend aliases such as `claude` to `claude_chat` and default model per backend (`claude-sonnet-4-6`, `gpt-4o`).
+- [skillopt/model/claude_backend.py](skillopt/model/claude_backend.py): `claude_chat` shells out to `claude -p`; env `CLAUDE_CLI_BIN`, `CLAUDE_PERMISSION_MODE`, `CLAUDE_SETTING_SOURCES` control it.
+- [skillopt/model/__init__.py](skillopt/model/__init__.py): Public API `chat_target`, `chat_optimizer`, backend setters; raises NotImplementedError for exec targets in chat calls.
+- [skillopt/model/codex_harness.py](skillopt/model/codex_harness.py): Exec target harness: `render_skill_md`, `prepare_workspace` writing `.agents/skills/skillopt-target/SKILL.md`, `run_target_exec` dispatch.
+- [skillopt/model/azure_openai.py](skillopt/model/azure_openai.py): Azure OpenAI client, auth modes `azure_cli`, `api_key`, `managed_identity`, per-role `OPTIMIZER_`/`TARGET_` variables.
+
+## SkillOpt-Sleep
+- [docs/sleep/README.md](docs/sleep/README.md): Nightly cycle overview, data boundary, `skillopt-sleep dry-run|run|status|adopt|schedule`, replay and recall config knobs.
+- [skillopt_sleep/__main__.py](skillopt_sleep/__main__.py): CLI definition: actions, `--backend`, `--source`, `--tasks-file`, `--target-skill-path`, `adopt --skill`, exit codes 2 and 3.
+- [skillopt_sleep/config.py](skillopt_sleep/config.py): Defaults in `DEFAULTS` (`gate_metric: mixed`, `edit_budget: 4`, `lookback_hours: 72`), `~/.skillopt-sleep/config.json`, managed skill path.
+- [skillopt_sleep/tasks_file.py](skillopt_sleep/tasks_file.py): Reviewed task file format `skillopt_sleep.tasks.v1`, automatic splits, rule-check validation.
+- [skillopt_sleep/judges.py](skillopt_sleep/judges.py): Rule-judge ops `contains`, `regex`, `section_present`, `tool_called`; all-checks-pass scoring; shape-only warning.
+- [skillopt_sleep/memory.py](skillopt_sleep/memory.py): The protected `SKILLOPT-SLEEP:LEARNED` block where Sleep writes bullets without touching hand-written text.
+- [skillopt_sleep/staging.py](skillopt_sleep/staging.py): Staging dir `<project>/.skillopt-sleep/staging/<timestamp>/`, proposal files, adoption transactions and backups.
+- [docs/sleep/multi-skill-staging.md](docs/sleep/multi-skill-staging.md): `multi_skill_fanout`, `proposed_SKILL.<name>.md`, `manifest.json` schema, `adopt --skill NAME`, `--all-skills`, `--legacy`.
+- [docs/sleep/openai-compatible-endpoints.md](docs/sleep/openai-compatible-endpoints.md): Sleep `--backend azure_openai` against DeepSeek or vLLM using `AZURE_OPENAI_AUTH_MODE=openai_compatible`.
+- [docs/sleep/evalkit.md](docs/sleep/evalkit.md): Paired A/B comparison with McNemar test and bootstrap CI: `python -m skillopt_sleep.evalkit --manifest --a --b`.
+
+## Agent plugins
+- [plugins/README.md](plugins/README.md): Integration matrix, install commands, shared CLI flags, handoff backend, reviewed task-file workflow, advanced config keys.
+- [plugins/claude-code/README.md](plugins/claude-code/README.md): Claude Code plugin: `/plugin marketplace add ./plugins/claude-code`, `/skillopt-sleep`, handoff mode, scheduling, safety.
+- [plugins/claude-code/commands/skillopt-sleep.md](plugins/claude-code/commands/skillopt-sleep.md): Slash command definition mapping `/skillopt-sleep` actions to the bundled `scripts/sleep.sh` runner.
+- [plugins/claude-code/commands/skillopt-sleep-handoff.md](plugins/claude-code/commands/skillopt-sleep-handoff.md): `/skillopt-sleep-handoff` loop where the session answers `PROMPTS.md` calls via `answers/<id>.md`.
+- [plugins/run-sleep.sh](plugins/run-sleep.sh): Shared runner that locates the repo or an installed `skillopt-sleep`; honors `SKILLOPT_SLEEP_REPO`.
+- [plugins/codex/README.md](plugins/codex/README.md): Codex skill install with `bash plugins/codex/install.sh` and `--source codex --backend codex` usage.
+- [plugins/cursor/README.md](plugins/cursor/README.md): Cursor plugin install, `--source cursor --backend cursor`, project skill target `.cursor/skills/skillopt-sleep-learned/SKILL.md`.
+- [plugins/copilot/README.md](plugins/copilot/README.md): GitHub Copilot MCP server `plugins/copilot/mcp_server.py` exposing seven `sleep_*` tools; registration config.
+- [plugins/devin/README.md](plugins/devin/README.md): Devin hooks, rules and MCP server with Devin transcript harvesting.
+- [plugins/dsh/README.md](plugins/dsh/README.md): DeepSeek Harness (dsh) bundle exposing native `skillopt_*` tools, config keys and the cordis patch overlay.
+- [plugins/openclaw/README.md](plugins/openclaw/README.md): OpenClaw reference adaptation (DeepSeek or Ollama wrapper) to review and port, not an installer.
+
+## Results & outputs
+- [skillopt/engine/trainer.py](skillopt/engine/trainer.py): Source of the run layout: `best_skill.md`, `summary.json`, `history.json`, `steps/step_NNNN/`, `test_eval/`, resume via `runtime_state.json`.
+- [ckpt/README.md](ckpt/README.md): Paper reference skills `ckpt/<bench>/gpt5.5_skill.md` and how to evaluate them with `scripts/eval_only.py`.
+- [docs/sleep/RESULTS.md](docs/sleep/RESULTS.md): Sleep gate-safety stress test, replay scaling and dream ablation results with protocol and caveats.
+- [skillopt_webui/app.py](skillopt_webui/app.py): Gradio dashboard `python -m skillopt_webui.app` with `--port`, `--host` (default `127.0.0.1`), `--share`.
+- [skillopt/utils/scoring.py](skillopt/utils/scoring.py): `compute_score` averages `hard` and `soft` over rollout result dicts; `skill_hash` for caching.
+
+## Development
+- [docs/contributing.md](docs/contributing.md): Dev install `pip install -e ".[dev]"`, contribution checklists for benchmarks and backends, PR process.
+- [.github/workflows/ci.yml](.github/workflows/ci.yml): CI on Python 3.10-3.12: `python -m pytest -q`, gradio matrix for the WebUI, `mkdocs build --strict`.
+
+## Optional
+- [llms-full.txt](llms-full.txt): Large concatenation (about 420 KB) of docs, CLI definitions, configs and extension code under `# path` headers.
+- [CHANGELOG.md](CHANGELOG.md): Released and unreleased changes including Sleep handoff, evalkit, OpenCode, Copilot and Cursor support.
+- [docs/index.md](docs/index.md): Documentation landing page with the two workflows table and supported benchmarks.
+- [docs/guide/dl-analogy.md](docs/guide/dl-analogy.md): Mapping from deep-learning concepts to SkillOpt terms and hyperparameter transfer rules.

@@ -1,0 +1,404 @@
+[
+  {
+    "path": "pyproject.toml",
+    "role": "packaging",
+    "summary": "Package metadata, extras, console scripts, ruff config",
+    "importance": 5
+  },
+  {
+    "path": "CLAUDE.md",
+    "role": "agent-instructions",
+    "summary": "Repo guide for Claude Code: layout, commands, fork workflow",
+    "importance": 5
+  },
+  {
+    "path": "AGENTS.md",
+    "role": "agent-instructions",
+    "summary": "Rules for Codex et al plus plugin integration catalog",
+    "importance": 4
+  },
+  {
+    "path": "README.md",
+    "role": "docs",
+    "summary": "Upstream project overview and quick start",
+    "importance": 4
+  },
+  {
+    "path": "CHANGELOG.md",
+    "role": "docs",
+    "summary": "Release notes and Unreleased feature list",
+    "importance": 3
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "role": "docs",
+    "summary": "Upstream contribution process",
+    "importance": 3
+  },
+  {
+    "path": "mkdocs.yml",
+    "role": "docs-config",
+    "summary": "Docs site navigation and theme",
+    "importance": 3
+  },
+  {
+    "path": ".github/workflows/ci.yml",
+    "role": "ci",
+    "summary": "Test matrix, webui gradio matrix, mkdocs strict build",
+    "importance": 4
+  },
+  {
+    "path": ".github/dependabot.yml",
+    "role": "ci",
+    "summary": "Dependency update policy",
+    "importance": 2
+  },
+  {
+    "path": ".env.example",
+    "role": "config",
+    "summary": "Env var template (subset of vars read)",
+    "importance": 3
+  },
+  {
+    "path": "scripts/train.py",
+    "role": "entrypoint",
+    "summary": "skillopt-train CLI; env registry; config merge",
+    "importance": 5
+  },
+  {
+    "path": "scripts/eval_only.py",
+    "role": "entrypoint",
+    "summary": "skillopt-eval CLI",
+    "importance": 4
+  },
+  {
+    "path": "scripts/materialize_searchqa.py",
+    "role": "data-prep",
+    "summary": "SearchQA split materialization",
+    "importance": 2
+  },
+  {
+    "path": "skillopt/engine/trainer.py",
+    "role": "core",
+    "summary": "ReflACTTrainer training loop",
+    "importance": 5
+  },
+  {
+    "path": "skillopt/config.py",
+    "role": "core",
+    "summary": "Config loading and defaults",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/types.py",
+    "role": "core",
+    "summary": "Shared dataclasses",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/evaluation/gate.py",
+    "role": "core",
+    "summary": "Validation gate decision",
+    "importance": 5
+  },
+  {
+    "path": "skillopt/gradient/reflect.py",
+    "role": "core",
+    "summary": "Analyst reflection into edit patches",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/gradient/aggregate.py",
+    "role": "core",
+    "summary": "Hierarchical patch merge",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/optimizer/clip.py",
+    "role": "core",
+    "summary": "Rank and select edits by learning rate",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/optimizer/skill.py",
+    "role": "core",
+    "summary": "Apply patches to skill document",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/optimizer/rewrite.py",
+    "role": "core",
+    "summary": "Full-rewrite update mode",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/optimizer/slow_update.py",
+    "role": "core",
+    "summary": "Epoch-boundary longitudinal guidance",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/optimizer/meta_skill.py",
+    "role": "core",
+    "summary": "Cross-epoch strategy memory",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/optimizer/scheduler.py",
+    "role": "core",
+    "summary": "Learning-rate schedulers",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/model/router.py",
+    "role": "backend",
+    "summary": "Active backend selection",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/model/common.py",
+    "role": "backend",
+    "summary": "Backend name aliases and default models",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/model/azure_openai.py",
+    "role": "backend",
+    "summary": "Azure/OpenAI chat calls with retry",
+    "importance": 4
+  },
+  {
+    "path": "skillopt/model/openai_compatible_backend.py",
+    "role": "backend",
+    "summary": "Generic OpenAI-compatible backend",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/model/claude_backend.py",
+    "role": "backend",
+    "summary": "Claude CLI chat backend",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/model/codex_harness.py",
+    "role": "backend",
+    "summary": "Exec harnesses for codex/claude/cursor/copilot targets",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/envs/base.py",
+    "role": "env",
+    "summary": "EnvAdapter abstract interface",
+    "importance": 5
+  },
+  {
+    "path": "skillopt/envs/_template/env_template.py",
+    "role": "env",
+    "summary": "Template for new benchmark adapter",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/envs/searchqa/adapter.py",
+    "role": "env",
+    "summary": "SearchQA adapter (default experiment)",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/envs/spreadsheetbench/executor.py",
+    "role": "env",
+    "summary": "Runs model-written code in subprocess",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/prompts/analyst_error.md",
+    "role": "prompt",
+    "summary": "Failure analyst prompt",
+    "importance": 3
+  },
+  {
+    "path": "skillopt/utils/json_utils.py",
+    "role": "util",
+    "summary": "Tolerant JSON extraction",
+    "importance": 3
+  },
+  {
+    "path": "skillopt_sleep/__main__.py",
+    "role": "sleep",
+    "summary": "skillopt-sleep CLI and subcommands",
+    "importance": 5
+  },
+  {
+    "path": "skillopt_sleep/cycle.py",
+    "role": "sleep",
+    "summary": "Nightly cycle orchestrator run_sleep_cycle",
+    "importance": 5
+  },
+  {
+    "path": "skillopt_sleep/backend.py",
+    "role": "sleep",
+    "summary": "All Sleep backends and get_backend",
+    "importance": 5
+  },
+  {
+    "path": "skillopt_sleep/consolidate.py",
+    "role": "sleep",
+    "summary": "Edit proposals and gate",
+    "importance": 4
+  },
+  {
+    "path": "skillopt_sleep/gate.py",
+    "role": "sleep",
+    "summary": "Sleep gate decision",
+    "importance": 4
+  },
+  {
+    "path": "skillopt_sleep/staging.py",
+    "role": "sleep",
+    "summary": "Proposal staging and adopt transaction",
+    "importance": 5
+  },
+  {
+    "path": "skillopt_sleep/harvest_sources.py",
+    "role": "sleep",
+    "summary": "Dispatch to transcript harvesters",
+    "importance": 4
+  },
+  {
+    "path": "skillopt_sleep/mine.py",
+    "role": "sleep",
+    "summary": "Recurring task mining",
+    "importance": 4
+  },
+  {
+    "path": "skillopt_sleep/replay.py",
+    "role": "sleep",
+    "summary": "Task replay",
+    "importance": 4
+  },
+  {
+    "path": "skillopt_sleep/config.py",
+    "role": "sleep",
+    "summary": "SleepConfig and DEFAULTS",
+    "importance": 4
+  },
+  {
+    "path": "skillopt_sleep/state.py",
+    "role": "sleep",
+    "summary": "Persisted Sleep state",
+    "importance": 3
+  },
+  {
+    "path": "skillopt_sleep/evalkit.py",
+    "role": "sleep",
+    "summary": "Paired A/B statistics",
+    "importance": 3
+  },
+  {
+    "path": "skillopt_sleep/multi_skill.py",
+    "role": "sleep",
+    "summary": "Multi-skill fan-out",
+    "importance": 3
+  },
+  {
+    "path": "skillopt_sleep/scheduler.py",
+    "role": "sleep",
+    "summary": "cron/schtasks scheduling",
+    "importance": 3
+  },
+  {
+    "path": "skillopt_sleep/handoff_backend.py",
+    "role": "sleep",
+    "summary": "No-subprocess handoff backend",
+    "importance": 3
+  },
+  {
+    "path": "skillopt_webui/app.py",
+    "role": "webui",
+    "summary": "Gradio dashboard",
+    "importance": 3
+  },
+  {
+    "path": "plugins/README.md",
+    "role": "plugins",
+    "summary": "Integration overview",
+    "importance": 4
+  },
+  {
+    "path": "plugins/claude-code/README.md",
+    "role": "plugins",
+    "summary": "Claude Code plugin guide",
+    "importance": 3
+  },
+  {
+    "path": "plugins/copilot/mcp_server.py",
+    "role": "plugins",
+    "summary": "Copilot MCP server",
+    "importance": 3
+  },
+  {
+    "path": "plugins/devin/mcp_server.py",
+    "role": "plugins",
+    "summary": "Devin MCP server",
+    "importance": 3
+  },
+  {
+    "path": "plugins/run-sleep.sh",
+    "role": "plugins",
+    "summary": "Shared Sleep launcher",
+    "importance": 3
+  },
+  {
+    "path": "configs/_base_/default.yaml",
+    "role": "config",
+    "summary": "Base training config",
+    "importance": 4
+  },
+  {
+    "path": "configs/searchqa/default.yaml",
+    "role": "config",
+    "summary": "SearchQA run config",
+    "importance": 3
+  },
+  {
+    "path": "docs/guide/training-loop.md",
+    "role": "docs",
+    "summary": "Loop stages explained",
+    "importance": 4
+  },
+  {
+    "path": "docs/guide/configuration.md",
+    "role": "docs",
+    "summary": "Config reference guide",
+    "importance": 3
+  },
+  {
+    "path": "docs/reference/cli.md",
+    "role": "docs",
+    "summary": "CLI reference",
+    "importance": 4
+  },
+  {
+    "path": "docs/sleep/README.md",
+    "role": "docs",
+    "summary": "Sleep overview and usage",
+    "importance": 4
+  },
+  {
+    "path": "docs/ARCHITECTURE.md",
+    "role": "docs",
+    "summary": "Architecture with mermaid diagram",
+    "importance": 4
+  },
+  {
+    "path": "docs/codebase-overview.md",
+    "role": "docs",
+    "summary": "File map",
+    "importance": 3
+  },
+  {
+    "path": "tests/test_sleep_engine.py",
+    "role": "test",
+    "summary": "Core Sleep engine tests",
+    "importance": 3
+  }
+]

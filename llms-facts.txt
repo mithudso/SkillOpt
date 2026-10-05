@@ -1,0 +1,356 @@
+# SkillOpt facts (one atomic fact per line)
+
+> Each line is `<fact> — <repo-relative path>:<line>`; grep a flag, env var, key or path to find its fact. Subject: this repo (fork of microsoft/SkillOpt, package `skillopt` 0.2.0).
+
+<!-- generated 2026-10-05 from commit fa4ca18 plus fork-local working-tree files (scripts/skillopt_skill.py, skillopt/envs/skilltask/, configs/skilltask/); lines may drift after later commits -->
+
+## Package and install
+
+The Python distribution name is `skillopt` and its version is 0.2.0. — pyproject.toml:6-7
+The package requires Python 3.10 or newer. — pyproject.toml:11
+`pip install skillopt` installs three console scripts: `skillopt-train`, `skillopt-eval`, `skillopt-sleep`. — pyproject.toml:66-69
+`skillopt-train` points at `scripts.train:main`. — pyproject.toml:67
+`skillopt-eval` points at `scripts.eval_only:main`. — pyproject.toml:68
+`skillopt-sleep` points at `skillopt_sleep.__main__:main`. — pyproject.toml:69
+The setuptools package list includes `skillopt`, `skillopt_sleep`, `skillopt_webui` and `scripts*`. — pyproject.toml:81
+Core dependencies are openai>=1.30.0, pyyaml, numpy, openpyxl, azure-identity, azure-core and httpx. — pyproject.toml:26-34
+The optional extra `claude` installs `claude-agent-sdk` and `json_repair`. — pyproject.toml:40
+The optional extra `qwen` installs `vllm` and `json_repair`. — pyproject.toml:42
+The optional extra `searchqa` installs `datasets`. — pyproject.toml:44
+The optional extra `webui` pins `gradio>=5.50.0,<7`. — pyproject.toml:55
+The optional extra `dev` installs `ruff` and `pytest`. — pyproject.toml:57
+The extra `all` installs alfworld, gymnasium, claude-agent-sdk and json_repair only, not docs, dev or webui. — pyproject.toml:58-64
+Ruff is configured with line length 120 and rules E, F, I, W. — pyproject.toml:86-92
+The PyPI wheel does not contain benchmark configs, data materializers, plugin shells, MCP servers or tests. — docs/guide/installation.md:21-24
+Source install is `git clone https://github.com/microsoft/SkillOpt.git`, `cd SkillOpt`, `python -m pip install -e .`. — docs/guide/installation.md:35-41
+Several features need a source install of main because they landed after PyPI 0.2.0, including the generic `openai_compatible` research backend and Sleep handoff. — docs/guide/installation.md:26-33
+The `claude` extra does not install the `claude` executable; install and authenticate Claude Code CLI separately. — docs/guide/installation.md:62-65
+SkillOpt does not auto-load `.env`; run `set -a; source .env; set +a` first. — docs/guide/installation.md:119-126
+Verify an install with `python -c "import skillopt"` and the three `--help` commands. — docs/guide/installation.md:177-182
+The `.env.example` template documents every backend's variables. — .env.example:1-72
+
+## Backends and credentials
+
+Allowed optimizer backends are `openai_chat`, `claude_chat`, `qwen_chat`, `minimax_chat`, `openai_compatible`, `copilot_chat`, `codex_exec`, `claude_code_exec`. — skillopt/model/backend_config.py:139-152
+Allowed target backends are the optimizer set plus `cursor_exec` and `copilot_exec`. — skillopt/model/backend_config.py:167-174
+`cursor_exec` and `copilot_exec` are target-only and raise "Unsupported optimizer backend" as optimizers. — skillopt/model/backend_config.py:139-152
+The exec target backends are `codex_exec`, `claude_code_exec`, `cursor_exec`, `copilot_exec`. — skillopt/model/backend_config.py:181-182
+`claude_chat` runs the Claude Code CLI as `claude -p --output-format json --permission-mode ... --add-dir <tmp>`. — skillopt/model/claude_backend.py:254
+`claude_chat` passes the system prompt to the CLI with `--append-system-prompt-file`. — skillopt/model/claude_backend.py:267
+`CLAUDE_CLI_BIN` sets the claude executable and defaults to `claude`. — skillopt/model/claude_backend.py:17
+`CLAUDE_PERMISSION_MODE` defaults to `dontAsk`. — skillopt/model/claude_backend.py:18
+`CLAUDE_SETTING_SOURCES` defaults to `user,project`. — skillopt/model/claude_backend.py:19
+`CLAUDE_ALLOW_ATTACHMENT_READ` defaults to `1`. — skillopt/model/claude_backend.py:20
+SkillOpt makes no direct Anthropic API call; `ANTHROPIC_API_KEY` is only one auth option the Claude CLI may use. — docs/guide/configuration.md:224-227
+The default model for `claude_chat` and `claude_code_exec` is `claude-sonnet-4-6`. — skillopt/model/common.py:23-25
+The default model for `openai_chat` and `azure_openai` is `gpt-4o`. — skillopt/model/common.py:19-20
+The default model for `openai_compatible` is `gpt-4o-mini`. — skillopt/model/common.py:33
+The default model for `qwen_chat` is `Qwen/Qwen3.5-4B`. — skillopt/model/common.py:31
+The default model for `minimax_chat` is `MiniMax-M3`. — skillopt/model/common.py:32
+The default model for `cursor_exec` is `composer-2.5`. — skillopt/model/common.py:26
+The backend alias `claude` normalizes to `claude_chat`. — skillopt/model/common.py:44
+The backend alias `anthropic` normalizes to `claude_chat`. — skillopt/model/common.py:55
+The backend alias `copilot` normalizes to `copilot_chat`. — skillopt/model/common.py:50
+The backend alias `cursor` normalizes to `cursor_exec`. — skillopt/model/common.py:47
+The backend alias `compat` normalizes to `openai_compatible`. — skillopt/model/common.py:63
+`AZURE_OPENAI_ENDPOINT` is required for `openai_chat`; without it the error is "Azure OpenAI endpoint is not configured for <role>". — skillopt/model/azure_openai.py:286-293
+`AZURE_OPENAI_API_VERSION` defaults to `2024-12-01-preview`. — skillopt/model/azure_openai.py:28
+`AZURE_OPENAI_AUTH_MODE` defaults to `azure_cli`; other values are `api_key`, `managed_identity`, `openai_compatible`. — skillopt/model/azure_openai.py:33
+Azure variables have per-role forms `OPTIMIZER_AZURE_OPENAI_*` and `TARGET_AZURE_OPENAI_*`. — skillopt/model/azure_openai.py:43-101
+`AZURE_OPENAI_AUTH_MODE=openai_compatible` makes `openai_chat` build a plain OpenAI client with no Azure auth or api-version. — .env.example:35-39
+`OPENAI_COMPATIBLE_BASE_URL` defaults to `https://api.openai.com/v1`. — skillopt/model/openai_compatible_backend.py:46
+`OPENAI_COMPATIBLE_API_KEY` empty falls back to the placeholder `dummy` so local servers work without a key. — skillopt/model/openai_compatible_backend.py:119
+`OPENAI_COMPATIBLE_MAX_TOKENS` defaults to 8000. — skillopt/model/openai_compatible_backend.py:93
+`OPENAI_COMPATIBLE_TIMEOUT_SECONDS` defaults to 300. — skillopt/model/openai_compatible_backend.py:92
+The `OPTIMIZER_OPENAI_COMPATIBLE_*` and `TARGET_OPENAI_COMPATIBLE_*` variables take precedence over the shared ones. — skillopt/model/openai_compatible_backend.py:73-77
+`QWEN_CHAT_BASE_URL` defaults to `http://localhost:8000/v1`. — skillopt/model/qwen_backend.py:153
+`QWEN_CHAT_THINKING_MODE` accepts `server_default` (default, field omitted), `enabled`, `disabled`. — docs/reference/config.md:74-78
+`MINIMAX_REGION` defaults to `global_en` (`https://api.minimax.io/v1`); `cn_zh` uses `https://api.minimaxi.com/v1`. — docs/guide/configuration.md:66-70
+`MINIMAX_TIMEOUT_SECONDS` defaults to 300. — skillopt/model/minimax_backend.py:53
+`MINIMAX_MAX_TOKENS` defaults to 8000. — skillopt/model/minimax_backend.py:54
+`MINIMAX_ENABLE_THINKING` defaults to false. — skillopt/model/minimax_backend.py:59
+`CODEX_EXEC_PATH` falls back to `CODEX_CLI_BIN`, then `CODEX_PATH`, then `codex`. — skillopt/model/backend_config.py:54
+`CODEX_EXEC_SANDBOX` falls back to `CODEX_SANDBOX_MODE`, then `CODEX_SANDBOX`, then `workspace-write`. — skillopt/model/backend_config.py:55
+Allowed Codex sandboxes are `read-only`, `workspace-write`, `danger-full-access`. — skillopt/model/backend_config.py:202
+`CODEX_EXEC_APPROVAL_POLICY` defaults to `never`. — skillopt/model/backend_config.py:65
+`CLAUDE_CODE_EXEC_PATH` defaults to `claude`. — skillopt/model/backend_config.py:66
+`CLAUDE_CODE_EXEC_USE_SDK` defaults to `auto`. — skillopt/model/backend_config.py:68
+`CLAUDE_CODE_EXEC_EFFORT` defaults to `medium`. — skillopt/model/backend_config.py:69
+`CLAUDE_CODE_EXEC_MAX_THINKING_TOKENS` defaults to 16384. — skillopt/model/backend_config.py:135
+`CURSOR_EXEC_PATH` defaults to `cursor-agent`. — skillopt/model/backend_config.py:70
+`CURSOR_EXEC_SANDBOX` defaults to `enabled`. — skillopt/model/backend_config.py:71
+`COPILOT_EXEC_PATH` defaults to `copilot`. — skillopt/model/backend_config.py:72
+`COPILOT_CHAT_TIMEOUT` defaults to 600. — skillopt/model/backend_config.py:79
+`OPTIMIZER_BACKEND` and `TARGET_BACKEND` default to `openai_chat`. — skillopt/model/backend_config.py:51-52
+`OPTIMIZER_DEPLOYMENT` and `TARGET_DEPLOYMENT` default to `gpt-4o` for the Azure backend. — skillopt/model/azure_openai.py:104-105
+`chat_target` raises NotImplementedError when the target backend is an exec backend. — skillopt/model/__init__.py:267-271
+`copilot_chat` does not support caller-supplied tools or structured tool calls. — docs/guide/configuration.md:59-60
+`--backend copilot` fills both roles with `copilot_chat` and needs no provider API key after `copilot login`. — docs/guide/configuration.md:52-55
+Credentials passed on the CLI or in `--cfg-options` raise a DeprecationWarning pointing to env vars. — scripts/train.py:491-543
+`OFFICEQA_DOCS_DIR` locates the OfficeQA documents; `OFFICEQA_SEARCH_API_URL` sets its search endpoint. — skillopt/envs/officeqa/tool_runtime.py:55
+`ALFWORLD_DATA` must point at the directory containing `json_2.1.1`. — scripts/run_alfworld.sh:22-33
+
+## Train CLI flags
+
+`skillopt-train` requires `--config`. — scripts/train.py:139
+`--cfg-options` takes one or more `section.key=value` overrides. — scripts/train.py:141-142
+The `--backend` choices of train are azure_openai, codex, codex_exec, claude, claude_chat, claude_code_exec, cursor, cursor_exec, copilot, copilot_chat, copilot_exec, qwen, qwen_chat, minimax, minimax_chat. — scripts/train.py:146-147
+`--reasoning_effort` accepts empty, low, medium, high, xhigh, max. — scripts/train.py:152-153
+`--edit_budget` maps to `optimizer.learning_rate`. — scripts/train.py:462
+`--min_edit_budget` maps to `optimizer.min_learning_rate`. — scripts/train.py:463
+`--lr_scheduler` accepts constant, linear, cosine, autonomous. — scripts/train.py:244-245
+`--lr_control_mode` accepts fixed, autonomous, none. — scripts/train.py:246-247
+`--skill_update_mode` accepts patch, rewrite_from_suggestions, rewrite, suggestions, full_rewrite, full_rewrite_minibatch, minibatch_full_rewrite. — scripts/train.py:260-269
+`--longitudinal_pair_policy` accepts mixed, changed, unchanged. — scripts/train.py:272-273
+`--skill_aware_appendix_source` accepts both, failure_only. — scripts/train.py:276-277
+`--split_mode` accepts ratio, split_dir. — scripts/train.py:280-281
+Boolean flags such as `--use_gate` take a value and treat `true`, `1`, `yes` as true. — scripts/train.py:130
+`--max_analyst_rounds` is retired: it is accepted, warns with FutureWarning and is ignored. — scripts/train.py:249-250
+`--codex_exec_full_auto` is deprecated and ignored. — scripts/train.py:208-215
+Flat flags with no entry in the structured map are filed under `env.<flag>`. — scripts/train.py:598-601
+Flat CLI flags are applied after `--cfg-options`, so a flag overrides it. — scripts/train.py:587-604
+`--out_root` maps to `env.out_root` and `--env` maps to `env.name`. — scripts/train.py:478-480
+If `--out_root` is absent the output dir is `outputs/skillopt_<env>_<optimizer_model>_<YYYYmmdd_HHMMSS>`. — scripts/train.py:748-753
+`--backend claude` sets both optimizer and target backends to `claude_chat` when they are still at the `openai_chat` default. — scripts/train.py:652-654
+`--backend claude_code_exec` keeps the optimizer on `openai_chat` and sets only the target to `claude_code_exec`. — scripts/train.py:658-663
+`--backend codex` sets both roles to `codex_exec`. — scripts/train.py:655-657
+A `claude_chat` role whose model is still the sentinel `gpt-5.5` is replaced by `claude-sonnet-4-6`. — scripts/train.py:689-694
+Environment adapters are looked up in `_ENV_REGISTRY`, populated lazily by `_register_builtins()`. — scripts/train.py:43-47
+An unknown `env` raises "Unknown environment '<name>'. Available: [...]". — scripts/train.py:109-113
+The adapter is built from only those flat-config keys that match its `__init__` parameter names. — scripts/train.py:116-125
+Training runs `ReflACTTrainer(cfg, adapter).train()`. — scripts/train.py:795-797
+
+## Eval CLI flags
+
+`skillopt-eval` requires `--config` and `--skill`. — scripts/eval_only.py:154-156
+`--split` accepts `train`, `valid_seen`, `valid_unseen`, `all`, and defaults to `all`. — scripts/eval_only.py:157-158
+`--split all` evaluates train, valid_seen and valid_unseen items together. — scripts/eval_only.py:566-571
+`valid_seen` maps to the `val/` split dir and `valid_unseen` maps to `test/`. — skillopt/datasets/base.py:154-161
+The eval `--backend` choices omit `qwen` and `qwen_chat`. — scripts/eval_only.py:163-164
+Eval writes `eval_summary.json` with keys `skill`, `split`, `n_items`, `hard`, `soft`. — scripts/eval_only.py:590-598
+Eval default output dir is `outputs/eval_<env>_<target_model>_<timestamp>`. — scripts/eval_only.py:462-468
+Eval scores results with `compute_score`, the mean of `hard` and the mean of `soft`. — skillopt/utils/scoring.py:7-23
+Eval reads the skill file from `--skill` and prints its length in chars. — scripts/eval_only.py:473-477
+
+## Configuration keys and defaults
+
+Config files support `_base_` inheritance; `_base_` is one string path relative to the child file. — skillopt/config.py:257-264
+Circular `_base_` inheritance raises ValueError. — skillopt/config.py:250-251
+Structured sections are model, train, gradient, optimizer, evaluation, env. — skillopt/config.py:25-27
+`optimizer.learning_rate` flattens to `edit_budget`. — skillopt/config.py:136
+`env.name` flattens to `env`. — skillopt/config.py:159
+Unmapped `env.*` keys pass through to the flat config under the same name. — skillopt/config.py:312-322
+`--cfg-options` values are auto-cast: true/yes, false/no, int, float, else string. — skillopt/config.py:329-343
+`train.num_epochs` defaults to 4. — configs/_base_/default.yaml:80
+`train.train_size` defaults to 0, meaning derive from the train split. — configs/_base_/default.yaml:81
+`train.batch_size` defaults to 40. — configs/_base_/default.yaml:82
+`train.accumulation` defaults to 1. — configs/_base_/default.yaml:83
+`train.seed` defaults to 42. — configs/_base_/default.yaml:84
+`gradient.minibatch_size` defaults to 8. — configs/_base_/default.yaml:87
+`gradient.merge_batch_size` defaults to 8 and must be at least 2. — configs/_base_/default.yaml:88
+`gradient.analyst_workers` defaults to 16. — configs/_base_/default.yaml:89
+`gradient.failure_only` defaults to false. — configs/_base_/default.yaml:90
+`optimizer.learning_rate` defaults to 4 and caps edits per step. — configs/_base_/default.yaml:93
+`optimizer.min_learning_rate` defaults to 2. — configs/_base_/default.yaml:94
+`optimizer.lr_scheduler` defaults to `cosine`. — configs/_base_/default.yaml:95
+`optimizer.skill_update_mode` defaults to `patch`. — configs/_base_/default.yaml:97
+`optimizer.use_slow_update` defaults to true and `slow_update_samples` to 20. — configs/_base_/default.yaml:98-99
+`optimizer.use_meta_skill` defaults to true. — configs/_base_/default.yaml:102
+`optimizer.use_skill_aware_reflection` defaults to false. — configs/_base_/default.yaml:103
+`evaluation.use_gate` defaults to true. — configs/_base_/default.yaml:108
+`evaluation.sel_env_num` and `test_env_num` default to 0, meaning the full split. — configs/_base_/default.yaml:109-110
+`evaluation.eval_test` defaults to true. — configs/_base_/default.yaml:111
+`evaluation.gate_metric` defaults to `hard`; allowed values are hard, soft, mixed. — skillopt/engine/trainer.py:1053-1058
+`evaluation.gate_mixed_weight` defaults to 0.5 and must be within [0, 1]. — skillopt/engine/trainer.py:1059-1072
+`env.split_mode` defaults to `ratio`. — configs/_base_/default.yaml:116
+`env.split_seed` defaults to 42. — configs/_base_/default.yaml:117
+`env.exec_timeout` defaults to 120 seconds. — configs/_base_/default.yaml:121
+`env.skill_init` defaults to the empty string. — configs/_base_/default.yaml:115
+The loader default `split_ratio` is `2:1:7` as train:val:test. — skillopt/datasets/base.py:236-247
+`split_ratio` needs exactly three positive integers separated by colons. — skillopt/datasets/base.py:192-206
+`model.rewrite_max_completion_tokens` defaults to 64000. — configs/_base_/default.yaml:12
+`model.reasoning_effort` defaults to `medium`. — configs/_base_/default.yaml:10
+`model.optimizer` and `model.target` default to `gpt-5.5`. — configs/_base_/default.yaml:6-7
+YAML `model.optimizer` and `model.target` override `*_MODEL` environment variables after backend init. — docs/guide/configuration.md:83-87
+The soft-gate example config inherits `../_base_/default.yaml` and sets `gate_metric: soft`. — configs/features/soft_gate.yaml:35-44
+Use `soft` or `mixed` gating when the selection split has about 10 or fewer items and rewards are continuous. — configs/features/soft_gate.yaml:10-21
+Skill-aware reflection is not supported with the rewrite update modes. — docs/guide/configuration.md:146-148
+SearchQA's config sets `train.train_size: 400`, which must equal the loaded train split size. — configs/searchqa/default.yaml:6-8
+
+## Training loop and gate
+
+Steps per epoch equal `ceil(train_size / (batch_size * accumulation))`. — skillopt/engine/trainer.py:892
+Total steps equal `num_epochs` times steps per epoch. — skillopt/engine/trainer.py:894
+A configured `train_size` that differs from the loaded train split raises ValueError. — skillopt/engine/trainer.py:437-441
+The trainer rejects a non-positive `batch_size`, a non-positive `accumulation` and `merge_batch_size < 2`. — skillopt/engine/trainer.py:884-889
+The initial skill is scored on the selection split before step 1 and written to `selection_eval_baseline/`. — skillopt/engine/trainer.py:1096-1123
+The gate accepts a candidate only when `cand_score > current_score`. — skillopt/evaluation/gate.py:200
+A candidate that also beats the best score is `accept_new_best`; otherwise `accept`; else `reject`. — skillopt/evaluation/gate.py:201-225
+With `use_gate: false` validation still runs but every candidate becomes `force_accept`. — skillopt/engine/trainer.py:1570-1590
+A step with no usable patches is recorded as `skip_no_patches` and leaves the skill unchanged. — skillopt/engine/trainer.py:1303-1324
+Gate metric `mixed` is `(1 - w) * hard + w * soft`. — skillopt/evaluation/gate.py:120-122
+Edit operations are `append`, `insert_after`, `replace`, `delete`. — skillopt/types.py:23
+`replace` and `delete` edits are skipped when the target text is not found in the skill. — skillopt/optimizer/skill.py:124-142
+An `insert_after` edit with a missing target falls back to appending. — skillopt/optimizer/skill.py:108-117
+Edits whose target lies inside a protected region are skipped. — skillopt/optimizer/skill.py:94-96
+Protected regions are delimited by `<!-- SLOW_UPDATE_START -->` / `<!-- SLOW_UPDATE_END -->` and `<!-- APPENDIX_START -->` / `<!-- APPENDIX_END -->`. — docs/guide/skill-document.md:45-55
+Slow update injects an empty placeholder after epoch 1 and compares epoch skills from epoch 2. — skillopt/engine/trainer.py:1751-1777
+The `cosine` scheduler decays the edit budget from `learning_rate` to `min_learning_rate`. — skillopt/optimizer/scheduler.py:79-91
+The `constant` scheduler returns `learning_rate` every step. — skillopt/optimizer/scheduler.py:56-61
+An unknown scheduler mode raises "Unknown scheduler mode". — skillopt/optimizer/scheduler.py:133-136
+The trainer reads `cfg["skill_init"]` with `os.path.abspath`, so an empty string resolves to the working directory. — skillopt/engine/trainer.py:858
+A `skill_init` path that does not exist starts a blank skill with a printed notice. — skillopt/engine/trainer.py:859-865
+A directory `skill_init` such as the empty-string default raises IsADirectoryError when opened. — skillopt/engine/trainer.py:859-861
+Re-running with an existing `--out_root` resumes from `runtime_state.json` `last_completed_step`. — skillopt/engine/trainer.py:948-977
+The held-out test evaluation runs only when `eval_test` is true. — skillopt/engine/trainer.py:2182
+When `eval_test` is true a final skill that beats the best selection score is promoted to `best_skill.md`. — skillopt/engine/trainer.py:2223-2238
+
+## Outputs of a training run
+
+`config.json` holds the redacted resolved config. — skillopt/engine/trainer.py:910-911
+`history.json` holds one record per step. — skillopt/engine/trainer.py:354-365
+`runtime_state.json` holds resume state. — skillopt/engine/trainer.py:397-412
+`skills/skill_vNNNN.md` is saved after every step and `skill_v0000.md` is the initial skill. — skillopt/engine/trainer.py:368-372
+`best_skill.md` is rewritten whenever best changes and at the end of training. — skillopt/engine/trainer.py:2164-2166
+`steps/step_NNNN/candidate_skill.md` stores each candidate skill. — skillopt/engine/trainer.py:1467-1468
+`steps/step_NNNN/ranked_edits.json` stores the ranked edits. — skillopt/engine/trainer.py:1355
+`steps/step_NNNN/merged_patch.json` stores the merged patch. — skillopt/engine/trainer.py:1335
+`steps/step_NNNN/step_record.json` stores the step record including `action`. — skillopt/engine/trainer.py:1711
+`test_eval_baseline/summary.json` holds per-task-type accuracy of the initial skill on the test split. — skillopt/engine/trainer.py:2255-2268
+`test_eval/summary.json` holds per-task-type accuracy of the best skill on the test split. — skillopt/engine/trainer.py:2290-2303
+`test_eval_final/summary.json` holds the same for the last skill. — skillopt/engine/trainer.py:2327-2329
+`summary.json` has keys `baseline_test_hard`, `test_hard`, `final_test_hard`, `test_delta_hard`, `best_step`, `total_accepts`, `token_summary`. — skillopt/engine/trainer.py:2421-2457
+`summary.json` `test_hard` is the best-on-selection skill and `baseline_test_hard` is the initial skill. — skillopt/engine/trainer.py:2438-2448
+The trainer prints `Final test` from `summary["test_hard"]` at the end of `scripts/train.py`. — scripts/train.py:799-801
+
+## Environment adapters and data
+
+`EnvAdapter` has four abstract methods: `build_train_env`, `build_eval_env`, `rollout`, `get_task_types`. — skillopt/envs/base.py:187-276
+`EnvAdapter.reflect` is inherited and uses `self.analyst_workers`, `self.failure_only`, `self.minibatch_size`, `self.edit_budget`. — skillopt/envs/base.py:259-272
+A rollout result dict needs `id` (str), `hard` (0/1 or float) and `soft` (float 0..1). — skillopt/envs/base.py:216-232
+Shared reflection reads `<rollout_dir>/predictions/<id>/conversation.json` and skips results without it. — skillopt/gradient/reflect.py:141
+Per-env prompt files `skillopt/envs/<env>/prompts/<name>.md` override `skillopt/prompts/<name>.md`. — skillopt/envs/base.py:278-316
+`SplitDataLoader` expects `train/`, `val/`, `test/` subdirs for `split_mode: split_dir`. — skillopt/datasets/base.py:151
+`split_mode: ratio` shuffles with `split_seed` and writes `train/`, `val/`, `test/` `items.json` plus `split_manifest.json`. — skillopt/datasets/base.py:330-368
+Generated ratio splits land in `<out_root>/_generated_splits/<env>_<ratio>_seed<seed>/`. — skillopt/datasets/base.py:294-300
+`data_path` may be one JSON/JSONL file or a directory containing exactly one such file. — skillopt/datasets/base.py:308-322
+JSON files may hold a list, a dict with a `data` list, or JSONL lines. — skillopt/datasets/base.py:164-189
+`limit` truncates each split to its first N items. — skillopt/datasets/base.py:383-385
+The default `load_split_items` loads the first `.json` file of a split dir as a JSON array. — skillopt/datasets/base.py:390-407
+A missing `val/` or `test/` subdir raises "Missing '<name>/' subdirectory in split_dir". — skillopt/datasets/base.py:376-381
+`skillopt/envs/_template/` contains `env_template.py`, `loader_template.py`, `config_template.yaml` and a README. — skillopt/envs/_template/README.md:5-12
+Custom envs must be registered in `_register_builtins()` of both `scripts/train.py` and `scripts/eval_only.py`, or via a launcher that sets `_ENV_REGISTRY`. — skillopt/envs/_template/README.md:36-40
+There is no BENCHMARK_REGISTRY dict in `skillopt/envs/__init__.py`. — skillopt/envs/_template/README.md:39-40
+`chat_target(system, user, max_completion_tokens, ...)` returns `(text, usage)`. — skillopt/model/__init__.py:209-217
+`chat_optimizer(system, user, ...)` returns `(text, usage)`. — skillopt/model/__init__.py:121-129
+`render_skill_md` wraps a skill in YAML frontmatter named `skillopt-target` for exec harnesses. — skillopt/model/codex_harness.py:48-75
+Exec harness workspaces place the skill at `.agents/skills/skillopt-target/SKILL.md`. — skillopt/model/codex_harness.py:109-111
+Built-in benchmarks are DocVQA, ALFWorld, OfficeQA, SearchQA, LiveMathematicianBench, SpreadsheetBench. — docs/index.md:116-123
+The built-in env configs live at `configs/<env>/default.yaml` and inherit `../_base_/default.yaml`. — configs/searchqa/default.yaml:1
+`scripts/materialize_searchqa.py` writes `data/searchqa_split` from `data/searchqa_id_split`. — scripts/materialize_searchqa.py:17-34
+Only `data/alfworld_path_split` can be used directly as a split dir; the others are ID manifests. — data/README.md:42-53
+Paper reference skills live at `ckpt/<bench>/gpt5.5_skill.md`. — ckpt/README.md:20-27
+
+## Fork-local skilltask env (untracked at generation time)
+
+`scripts/skillopt_skill.py train|eval` registers the `skilltask` env without editing `scripts/train.py` or `scripts/eval_only.py`. — scripts/skillopt_skill.py:33-48
+The launcher sets `CLAUDE_SETTING_SOURCES=project` by default so user hooks do not run in `claude -p` rollouts. — scripts/skillopt_skill.py:31
+The `skilltask` item field `id` is required and must be unique. — skillopt/envs/skilltask/dataloader.py:18-20
+The `skilltask` prompt comes from `input`, `prompt` or `question`. — skillopt/envs/skilltask/dataloader.py:21-23
+A `skilltask` item needs `expected` (or `answer`) or a `rubric`. — skillopt/envs/skilltask/dataloader.py:24-30
+The `skilltask` grader choices are auto, exact, contains, judge; `auto` picks judge when a rubric exists else contains. — skillopt/envs/skilltask/adapter.py:40-41
+The `skilltask` judge calls `chat_optimizer` and expects JSON `{"score": 0..1, "reason": ...}`. — skillopt/envs/skilltask/rollout.py:12-16
+A judge score at or above `pass_threshold` (default 0.7) counts as hard pass. — skillopt/envs/skilltask/rollout.py:55
+The `skilltask` target call uses `chat_target(system=skill_content, user=<prompt>)`. — skillopt/envs/skilltask/rollout.py:62-63
+A failed `skilltask` target call scores 0 instead of aborting the batch. — skillopt/envs/skilltask/rollout.py:64-66
+`skilltask` writes `predictions/<id>/conversation.json` and `rollouts.json`. — skillopt/envs/skilltask/rollout.py:71-79
+`configs/skilltask/default.yaml` uses `model.backend: claude_chat`, optimizer `opus`, target `sonnet`. — configs/skilltask/default.yaml:6-9
+`configs/skilltask/default.yaml` sets 3 epochs, batch size 8, learning rate 3, split ratio `5:3:2`. — configs/skilltask/default.yaml:12-42
+`configs/skilltask/default.yaml` sets `evaluation.gate_metric: mixed` with `gate_mixed_weight: 0.5` for small task sets. — configs/skilltask/default.yaml:32-35
+`configs/skilltask/default.yaml` leaves `env.skill_init` and `env.data_path` empty and both are required. — configs/skilltask/default.yaml:39-41
+
+## SkillOpt-Sleep CLI
+
+`skillopt-sleep` actions are run, dry-run, status, adopt, harvest, schedule, unschedule, evalkit. — skillopt_sleep/__main__.py:852-886
+`--backend` choices are mock, claude, codex, copilot, cursor, pi, opencode, handoff, azure_openai. — skillopt_sleep/__main__.py:100-102
+`--source` choices are claude, codex, copilot, copilot_cli, cursor, pi, opencode, auto. — skillopt_sleep/__main__.py:117-118
+`--scope` accepts `invoked` or `all`. — skillopt_sleep/__main__.py:99
+`--target-skill-path` names the live SKILL.md to evolve, stage and adopt. — skillopt_sleep/__main__.py:133-134
+`--skill-root` is repeatable and adds a root containing `<skill-name>/SKILL.md`. — skillopt_sleep/__main__.py:135-141
+`--tasks-file` replays a reviewed TaskRecord JSON file instead of harvesting. — skillopt_sleep/__main__.py:142-143
+`--preferences` injects free-text house rules into the optimizer's reflect step. — skillopt_sleep/__main__.py:147-148
+`--auto-adopt` adopts an accepted proposal without a separate adopt command. — skillopt_sleep/__main__.py:146
+`adopt` accepts `--staging`, repeatable `--skill`, `--all-skills` and `--legacy`. — skillopt_sleep/__main__.py:862-874
+`harvest --output FILE` writes mined tasks as JSON for review. — skillopt_sleep/__main__.py:877
+`schedule` defaults to `--hour 3 --minute 17`. — skillopt_sleep/__main__.py:880-881
+`unschedule --all` removes every managed cron entry. — skillopt_sleep/__main__.py:884
+`evalkit` takes `--manifest`, `--a`, `--b` or `--aa`, `--alpha`, `--boot`, `--seed`, `--allow-graded`, `--json`. — skillopt_sleep/__main__.py:889-897
+A real backend refuses an unreviewed tasks file with exit code 2. — skillopt_sleep/__main__.py:246-252
+Handoff mode exits with code 3 while model calls are pending. — skillopt_sleep/__main__.py:383
+The handoff directory defaults to `<project>/.skillopt-sleep-handoff` or `SKILLOPT_SLEEP_HANDOFF_DIR`. — skillopt_sleep/__main__.py:328-332
+Handoff writes `PROMPTS.md` and `pending.json` and reads answers from `answers/<id>.md`. — skillopt_sleep/handoff_backend.py:9-15
+The nightly CLI does not expose `--gate`, `--rollouts-k`, `--optimizer-model`, `--target-model`, `--budget-tokens`, `--budget-minutes`. — plugins/README.md:167-169
+
+## SkillOpt-Sleep config, tasks, outputs
+
+The Sleep config file is `~/.skillopt-sleep/config.json` (or `.yaml`) and CLI overrides win. — skillopt_sleep/config.py:7-11
+Sleep state lives at `~/.skillopt-sleep/state.json`. — skillopt_sleep/config.py:19
+Sleep default `backend` is `mock`. — skillopt_sleep/config.py:48
+Sleep default `transcript_source` is `claude`. — skillopt_sleep/config.py:37
+Sleep default `lookback_hours` is 72. — skillopt_sleep/config.py:40
+Sleep default `max_tasks_per_night` is 40. — skillopt_sleep/config.py:42
+Sleep default `max_tokens_per_night` is 400000. — skillopt_sleep/config.py:43
+Sleep default `val_fraction` is 0.34 and `test_fraction` is 0.0. — skillopt_sleep/config.py:45-46
+Sleep default `edit_budget` is 4. — skillopt_sleep/config.py:64
+Sleep default `gate_mode` is `on`. — skillopt_sleep/config.py:58
+Sleep default `gate_metric` is `mixed` with `gate_mixed_weight` 0.5. — skillopt_sleep/config.py:66-67
+Sleep default `gate_no_regression` is false. — skillopt_sleep/config.py:68
+Sleep defaults `dream_rollouts` 1, `dream_factor` 0, `recall_k` 0. — skillopt_sleep/config.py:71-73
+Sleep defaults `evolve_memory` and `evolve_skill` are true. — skillopt_sleep/config.py:74-75
+Sleep default `auto_adopt` is false. — skillopt_sleep/config.py:89
+Sleep default `managed_skill_name` is `skillopt-sleep-learned`. — skillopt_sleep/config.py:90
+The default managed skill path is `<claude_home>/skills/skillopt-sleep-learned/SKILL.md`. — skillopt_sleep/config.py:190-192
+Config keys `optimizer_backend`, `optimizer_model`, `target_backend`, `target_model` split Sleep roles. — skillopt_sleep/config.py:50-56
+Sleep edits are confined to the block `<!-- SKILLOPT-SLEEP:LEARNED START -->` ... `<!-- SKILLOPT-SLEEP:LEARNED END -->`. — skillopt_sleep/memory.py:15-16
+Sleep writes learned bullets under the heading "Learned preferences & procedures". — skillopt_sleep/memory.py:47-56
+The tasks file format string is `skillopt_sleep.tasks.v1` and new files have `"reviewed": false`. — skillopt_sleep/tasks_file.py:23-28
+A tasks file may be a bare JSON array of tasks. — skillopt_sleep/tasks_file.py:66-68
+When no task has split val or test and there are at least 2 tasks, splits are assigned automatically. — skillopt_sleep/tasks_file.py:52-54
+Rule checks that cannot work (for example a regex that does not compile) make task loading fail. — skillopt_sleep/tasks_file.py:84-98
+`TaskRecord.reference_kind` is one of exact, rubric, rule, none. — skillopt_sleep/types.py:68
+A rule judge is `{"kind": "rule", "checks": [{"op", "arg", "description"}]}`. — skillopt_sleep/llm_miner.py:129
+Known rule-judge ops are section_present, section_contains, regex, max_chars, min_chars, contains, not_contains, no_refusal, tool_called. — skillopt_sleep/judges.py:144-146
+A rule task is a hard pass only if all checks pass; soft is the fraction of checks passed. — skillopt_sleep/judges.py:328-330
+Shape-only judges (section and length checks) can be satisfied by reformatting and trigger a validation warning. — skillopt_sleep/judges.py:245-249
+Staging directories are named with `%Y%m%d-%H%M%S` under `<project>/.skillopt-sleep/staging/`. — skillopt_sleep/staging.py:824-829
+A staged night can contain `manifest.json`, `report.md`, `report.json`, `proposed_SKILL.md`, `proposed_CLAUDE.md`. — skillopt_sleep/staging.py:1119-1135
+Per-skill proposals are named `proposed_SKILL.<name>.md`. — skillopt_sleep/staging.py:390-392
+`evidence.jsonl` is written per night in the staging dir. — docs/sleep/multi-skill-staging.md:55-65
+`diagnostics.json` is staged alongside `report.json`. — plugins/claude-code/skills/skillopt-sleep/SKILL.md:44-46
+Adoption backups are written under the staging dir's `backup/`. — plugins/claude-code/README.md:177
+Bare `adopt` is only valid for a legacy-only night and refuses a night with per-skill rows. — docs/sleep/multi-skill-staging.md:142-148
+`auto_adopt` never promotes per-skill fan-out proposals. — docs/sleep/multi-skill-staging.md:15-17
+The `claude` Sleep backend runs `claude -p --output-format text` with `--disable-slash-commands` and `--disallowedTools '*'`. — skillopt_sleep/backend.py:765-772
+The `claude` Sleep backend defaults its model to `sonnet` or `SKILLOPT_SLEEP_CLAUDE_MODEL`. — skillopt_sleep/backend.py:709
+The `claude` Sleep backend adds `--bare` only when `ANTHROPIC_API_KEY` is set. — skillopt_sleep/backend.py:766-767
+The Sleep `azure_openai` backend reads `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_AUTH_MODE`. — docs/sleep/openai-compatible-endpoints.md:64-70
+`SKILLOPT_SLEEP_COMPAT_MAX_TOKENS` defaults to 8192 in compat mode. — docs/sleep/openai-compatible-endpoints.md:69
+`SKILLOPT_SLEEP_CHAT_EXTRA_BODY` passes provider-specific JSON as `extra_body` in compat mode only. — docs/sleep/openai-compatible-endpoints.md:70
+Sleep ignores the research-engine `OPTIMIZER_*` and `TARGET_*` variables. — docs/sleep/openai-compatible-endpoints.md:59-62
+The managed scheduler stores only project, backend, time and auto-adopt, not `--source` or `--model`. — docs/reference/cli.md:421-428
+The Claude Code plugin is installed with `/plugin marketplace add ./plugins/claude-code` then `/plugin install skillopt-sleep@skillopt-sleep`. — plugins/claude-code/README.md:43-45
+The plugin command is `/skillopt-sleep` with actions run, dry-run, status, adopt, harvest, schedule, unschedule. — plugins/claude-code/commands/skillopt-sleep.md:32-42
+`/skillopt-sleep-handoff` lets the current session answer model calls with no `claude -p` subprocess. — plugins/claude-code/commands/skillopt-sleep-handoff.md:1-12
+The shared runner honors `SKILLOPT_SLEEP_REPO` and `SKILLOPT_SLEEP_PYTHON`. — plugins/claude-code/scripts/run-sleep.sh:17-34
+The Copilot and Devin MCP servers expose `sleep_status`, `sleep_dry_run`, `sleep_run`, `sleep_adopt`, `sleep_harvest`, `sleep_schedule`, `sleep_unschedule`. — plugins/copilot/mcp_server.py:32-44
+The evalkit compares two conditions on one fixed manifest with McNemar and a bootstrap CI. — docs/sleep/evalkit.md:1-12
+
+## WebUI and development
+
+The WebUI starts with `python -m skillopt_webui.app` and needs the `webui` extra. — README.md:89-92
+WebUI `--port` defaults to 7860. — skillopt_webui/app.py:666
+WebUI `--host` defaults to `127.0.0.1`. — skillopt_webui/app.py:668
+WebUI `--share` creates a public Gradio link. — skillopt_webui/app.py:667
+Tests run with `python -m pytest -q`; CI covers Python 3.10, 3.11, 3.12. — .github/workflows/ci.yml:15-24
+Live OpenCode tests are off in CI via `SKILLOPT_TEST_REAL_OPENCODE=0`. — .github/workflows/ci.yml:28
+Docs build with `mkdocs build --strict`. — .github/workflows/ci.yml:62-63
