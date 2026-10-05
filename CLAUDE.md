@@ -38,7 +38,7 @@ skillopt-sleep run --backend mock       # == python -m skillopt_sleep ; mock nee
 python -m skillopt_webui                # dashboard, --port 7860 default
 ```
 
-Sleep subcommands: `run`, `dry-run`, `status`, `adopt`, `harvest`, `schedule`, `unschedule`, `eval` (paired A/B evalkit). Env vars: see `.env.example` and `docs/DEVELOPMENT.md`.
+Sleep subcommands: `run`, `dry-run`, `status`, `adopt`, `harvest`, `schedule`, `unschedule`, `evalkit` (paired A/B; also `python -m skillopt_sleep.evalkit`). Env vars: see `.env.example` and `docs/DEVELOPMENT.md`.
 
 ## Conventions
 
@@ -54,7 +54,7 @@ Sleep subcommands: `run`, `dry-run`, `status`, `adopt`, `harvest`, `schedule`, `
 - `origin` = `https://github.com/mithudso/SkillOpt.git`, `upstream` = `https://github.com/microsoft/SkillOpt.git`.
 - Sync: `git fetch upstream && git merge upstream/main`.
 - Keep fork-only changes **additive** (new files only; do not edit upstream-tracked files such as `README.md`, `CONTRIBUTING.md`, `mkdocs.yml`, `docs/guide/*`, source, tests, workflows) so merges stay conflict-free.
-- Fork-only files: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `memory.md`, `prompts.md`, `.github/copilot-instructions.md`, `.editorconfig`, `.gitattributes`, `llms*.txt`, `docs/{ARCHITECTURE,DEVELOPMENT,COMPONENTS,TESTING,INSTALLATION,known-issues,external-calls,integrations-and-assumptions,logging,onboarding,codebase-overview}.md`, `docs/high_signal_file_index.json`, `docs/repo-bootstrap-audit-*.md`, plus the generic skill-optimization env: `skillopt/envs/skilltask/`, `scripts/skillopt_skill.py`, `configs/skilltask/default.yaml`, `tests/test_skilltask_env.py`.
+- Fork-only files: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `memory.md`, `prompts.md`, `.github/copilot-instructions.md`, `.editorconfig`, `.gitattributes`, `llms*.txt`, `docs/{ARCHITECTURE,DEVELOPMENT,COMPONENTS,TESTING,INSTALLATION,known-issues,external-calls,integrations-and-assumptions,logging,onboarding,codebase-overview}.md`, `docs/high_signal_file_index.json`, `docs/repo-bootstrap-audit-*.md`, `.stele/project.json` (Stele binding to project `skillopt-ocj5r`), plus the generic skill-optimization env: `skillopt/envs/skilltask/`, `scripts/skillopt_skill.py`, `configs/skilltask/default.yaml`, `tests/test_skilltask_env.py`.
 
 ## Optimizing an arbitrary skill (fork-only)
 

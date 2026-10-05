@@ -18,7 +18,7 @@
 | Sleep consolidate | `consolidate.py`, `dream.py`, `slow_update.py`, `multi_skill.py`, `gate.py` | edit proposals + gate, multi-skill fan-out | `consolidate`, `evaluate_gate` | backend |
 | Sleep staging | `staging.py`, `skill_resolver.py`, `memory.py` | proposals, adopt transaction, skill path resolution | `write_staging`, `adopt` | filesystem |
 | Sleep backends | `skillopt_sleep/backend.py`, `handoff_backend.py` | model/CLI backends | `get_backend`, `build_backend` | CLIs, openai |
-| Sleep evalkit | `evalkit.py` | paired A/B stats | `skillopt-sleep eval` | |
+| Sleep evalkit | `evalkit.py` | paired A/B stats | `skillopt-sleep evalkit` | |
 | Sleep scheduler | `scheduler.py` | cron/schtasks install | `schedule`/`unschedule` | crontab, schtasks |
 | Sleep adapters | `adapters/superpowers.py` | Superpowers skill replay adapter | | claude CLI |
 | Sleep experiments | `experiments/*.py` | persona/gbrain/transfer/sweep experiment runners | | |
