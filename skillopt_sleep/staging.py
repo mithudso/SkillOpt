@@ -11,6 +11,7 @@ import base64
 import getpass
 import hashlib
 import json
+import logging
 import math
 import os
 import re
@@ -61,7 +62,7 @@ _SECRET_ASSIGNMENT_NAME = (
 
 _JSON_SECRET_ASSIGNMENT = re.compile(
     r"(?i)(?P<prefix>(?<![A-Za-z0-9])(?P<key_quote>[\"'])"
-    + r"(?:" + _SECRET_NAME_BODY + r"|pwd|accountkey)"
+    + r"(?:" + _SECRET_NAME_BODY + r"|pwd|accountkey|authorization)"
     + r"(?P=key_quote)\s*:\s*)"
     + r"(?P<value>" + _SECRET_VALUE + r")"
 )
@@ -834,6 +835,11 @@ def _ensure_staging_root(project: str) -> str:
     root = staging_root(project)
     project_real = _canonical_live_path(project)
     expected_real = os.path.join(project_real, ".skillopt-sleep", "staging")
+    state_root = os.path.join(project, ".skillopt-sleep")
+    if os.path.lexists(state_root) and (
+        _is_link_or_junction(state_root) or not os.path.isdir(state_root)
+    ):
+        raise StagingError(f"staging ancestor is unsafe: {state_root}")
     if os.path.lexists(root) and (
         _is_link_or_junction(root) or not os.path.isdir(root)
     ):
@@ -1123,13 +1129,13 @@ def write_staging(
         (
             os.path.join(out, "report.json"),
             json.dumps(
-                json_safe(report.to_dict()),
+                json_safe(redact_secrets(report.to_dict())),
                 ensure_ascii=False,
                 indent=2,
                 allow_nan=False,
             ),
         ),
-        (os.path.join(out, "report.md"), report_md),
+        (os.path.join(out, "report.md"), redact_secrets(report_md)),
         # The manifest is the publication marker and must always be last.
         (
             os.path.join(out, "manifest.json"),
@@ -1763,8 +1769,13 @@ def _exclusive_create_locks(paths: Sequence[str]):
                 info = os.lstat(path)
                 if (info.st_dev, info.st_ino) == identity:
                     os.unlink(path)
-            except OSError:
+            except FileNotFoundError:
                 pass
+            except OSError as exc:
+                logging.getLogger("skillopt_sleep").warning(
+                    "Adoption lock cleanup failed; a retained lock will fail closed: %s (%s)",
+                    path, type(exc).__name__,
+                )
 
 
 def _wal_path(staging_dir: str) -> str:

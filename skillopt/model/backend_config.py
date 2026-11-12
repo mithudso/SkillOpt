@@ -138,8 +138,8 @@ CLAUDE_CODE_EXEC_MAX_THINKING_TOKENS = max(
 
 def set_optimizer_backend(backend: str) -> None:
     global OPTIMIZER_BACKEND
-    OPTIMIZER_BACKEND = normalize_backend_name(backend or "openai_chat")
-    if OPTIMIZER_BACKEND not in {
+    candidate = normalize_backend_name(backend or "openai_chat")
+    if candidate not in {
         "openai_chat",
         "claude_chat",
         "qwen_chat",
@@ -150,11 +150,12 @@ def set_optimizer_backend(backend: str) -> None:
         "claude_code_exec",
     }:
         raise ValueError(
-            f"Unsupported optimizer backend: {OPTIMIZER_BACKEND!r}. "
+            f"Unsupported optimizer backend: {candidate!r}. "
             "Supported values are 'openai_chat', 'claude_chat', 'qwen_chat', 'minimax_chat', "
             "'openai_compatible', 'copilot_chat', 'codex_exec', and 'claude_code_exec'."
         )
-    os.environ["OPTIMIZER_BACKEND"] = OPTIMIZER_BACKEND
+    OPTIMIZER_BACKEND = candidate
+    os.environ["OPTIMIZER_BACKEND"] = candidate
 
 
 def get_optimizer_backend() -> str:
@@ -163,15 +164,16 @@ def get_optimizer_backend() -> str:
 
 def set_target_backend(backend: str) -> None:
     global TARGET_BACKEND
-    TARGET_BACKEND = normalize_backend_name(backend or "openai_chat")
-    if TARGET_BACKEND not in {"openai_chat", "claude_chat", "qwen_chat", "minimax_chat", "openai_compatible", "copilot_chat", "codex_exec", "claude_code_exec", "cursor_exec", "copilot_exec"}:
+    candidate = normalize_backend_name(backend or "openai_chat")
+    if candidate not in {"openai_chat", "claude_chat", "qwen_chat", "minimax_chat", "openai_compatible", "copilot_chat", "codex_exec", "claude_code_exec", "cursor_exec", "copilot_exec"}:
         raise ValueError(
-            f"Unsupported target backend: {TARGET_BACKEND!r}. "
+            f"Unsupported target backend: {candidate!r}. "
             "Supported values are 'openai_chat', 'claude_chat', 'qwen_chat', 'minimax_chat', "
             "'openai_compatible', 'copilot_chat', 'codex_exec', 'claude_code_exec', "
             "'cursor_exec', and 'copilot_exec'."
         )
-    os.environ["TARGET_BACKEND"] = TARGET_BACKEND
+    TARGET_BACKEND = candidate
+    os.environ["TARGET_BACKEND"] = candidate
 
 
 def get_target_backend() -> str:

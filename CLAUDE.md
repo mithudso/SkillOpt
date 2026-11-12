@@ -52,8 +52,8 @@ Sleep subcommands: `run`, `dry-run`, `status`, `adopt`, `harvest`, `schedule`, `
 ## Fork workflow
 
 - `origin` = `https://github.com/mithudso/SkillOpt.git`, `upstream` = `https://github.com/microsoft/SkillOpt.git`.
-- Sync: `git fetch upstream && git merge upstream/main`.
-- Keep fork-only changes **additive** (new files only; do not edit upstream-tracked files such as `README.md`, `CONTRIBUTING.md`, `mkdocs.yml`, `docs/guide/*`, source, tests, workflows) so merges stay conflict-free.
+- Maintenance fetches and delivers only to personal `origin`. Never mutate upstream. Upstream synchronization is a separate, explicitly scoped operation.
+- Prefer small fork changes. An explicit maintained-source repair request may modify this fork's source, tests and workflows; the earlier additive-only bootstrap policy does not prevent those requested repairs.
 - Fork-only files: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `memory.md`, `prompts.md`, `.github/copilot-instructions.md`, `.editorconfig`, `.gitattributes`, `llms*.txt`, `docs/{ARCHITECTURE,DEVELOPMENT,COMPONENTS,TESTING,INSTALLATION,known-issues,external-calls,integrations-and-assumptions,logging,onboarding,codebase-overview}.md`, `docs/high_signal_file_index.json`, `docs/repo-bootstrap-audit-*.md`, `.stele/project.json` (Stele binding to project `skillopt-ocj5r`), plus the generic skill-optimization env: `skillopt/envs/skilltask/`, `scripts/skillopt_skill.py`, `configs/skilltask/default.yaml`, `tests/test_skilltask_env.py`.
 
 ## Optimizing an arbitrary skill (fork-only)
@@ -66,5 +66,8 @@ After every substantive change: append a new version section to `memory.md` (wha
 
 ## Pointers
 
+- Maintained wiki: `docs/wiki/index.md`; security boundaries: `docs/SECURITY.md`; MCP adapters: `docs/MCP.md`.
+- Static metadata: stage only task-owned new paths, then run `python scripts/doc_inventory.py`; CI checks `python scripts/doc_inventory.py --check`. This parses source without importing providers or reading frozen data/prompt bodies. It creates no embeddings.
+- Verification: synthetic fixtures, scratch HOME/data/model/auth and a process-tree egress guard. Do not use live provider calls, private profiles or cached model inference for maintenance.
 - LLM-oriented index: `llms.txt` (repo root, maintained separately).
 - Human docs: `docs/` (`docs/guide/`, `docs/reference/`, `docs/sleep/`), plus the bootstrap suite listed above.

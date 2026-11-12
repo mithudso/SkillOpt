@@ -6,11 +6,17 @@ Rules for Codex and other coding agents. Same rules as `CLAUDE.md`; this file ad
 
 1. Read relevant files before editing; never invent commands or paths (verify in `pyproject.toml`, `scripts/`, `.github/workflows/ci.yml`, `docs/`).
 2. Setup/test: `pip install -e ".[dev]"`, then `python -m pytest -q`. Docs: `python -m mkdocs build --strict` (needs `.[docs]`). Lint: `ruff check skillopt skillopt_sleep skillopt_webui scripts tests` (not a CI gate).
-3. Fork workflow: `origin` = `https://github.com/mithudso/SkillOpt.git`, `upstream` = `https://github.com/microsoft/SkillOpt.git`; sync with `git fetch upstream && git merge upstream/main`. Add new files only; do not edit upstream-tracked files.
+3. Fork workflow: `origin` = `https://github.com/mithudso/SkillOpt.git`, `upstream` = `https://github.com/microsoft/SkillOpt.git`. Maintenance fetches and delivers only to personal `origin`. Focused source repairs in this fork are allowed when explicitly requested. Upstream synchronization needs its own scope; never mutate upstream.
 4. Workflow log: append to `memory.md` and `prompts.md` with a version bump after each substantive change.
 5. Never commit secrets, `.env`, `.mcp.json`, `outputs/`, `.skillopt-sleep/`.
 6. Tests are hermetic; live tests require `SKILLOPT_TEST_REAL_OPENCODE=1`.
 7. See `CLAUDE.md` for layout, `docs/ARCHITECTURE.md` for design, `llms.txt` for the LLM index.
+8. Preserve datasets, model prompts, checkpoints, profiles, credentials, outputs and live installations. Maintenance tests use synthetic inputs, scratch state and a process-tree network guard; do not invoke real inference or semantic indexing.
+9. Refresh static metadata with `python scripts/doc_inventory.py` after staging task-owned source paths. Verify it with `python scripts/doc_inventory.py --check`. The generator reads indexed paths only and never imports target modules.
+
+No repository-local `.claude/agents/` or `.github/agents/` definitions exist. The
+catalog below describes installable integrations, not autonomous reviewer agents.
+Start at the maintained [wiki](docs/wiki/index.md) for operational references.
 
 ## Agent-facing integrations (`plugins/`, SkillOpt-Sleep)
 

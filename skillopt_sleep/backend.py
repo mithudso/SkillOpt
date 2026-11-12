@@ -21,12 +21,15 @@ consolidation stage gates and stages.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import secrets
+import shlex
 import shutil
 import subprocess
 import tempfile
+import threading
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,6 +45,20 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 
 def skill_hash(content: str) -> str:
     import hashlib
     return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+
+
+def _safe_tool_names(tools: List[str]) -> List[str]:
+    """Validate logical names before they become filenames or shell literals."""
+    names = tools or ["search"]
+    reserved = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
+    if not isinstance(names, (list, tuple)):
+        raise ValueError("tool names must be a list")
+    for name in names:
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", name) or name.lower() in reserved:
+            raise ValueError("tool names must be safe portable identifiers")
+    if len({name.casefold() for name in names}) != len(names):
+        raise ValueError("tool names must be unique")
+    return list(names)
 
 
 # ── Backend protocol ──────────────────────────────────────────────────────────
@@ -107,11 +124,13 @@ def _normalize(s: str) -> str:
 
 
 def exact_score(reference: str, response: str) -> float:
-    ref = _normalize(reference)
-    resp = _normalize(response)
+    # Preserve signs and decimal punctuation. Match an entire answer token while
+    # retaining the documented support for prose and <answer> wrappers.
+    ref = re.sub(r"\s+", " ", (reference or "").strip().lower())
+    resp = re.sub(r"\s+", " ", (response or "").strip().lower())
     if not ref:
         return 0.0
-    return 1.0 if ref in resp or resp == ref else 0.0
+    return float(re.search(r"(?<![\w.+-])" + re.escape(ref) + r"(?!\w|\.\d)", resp) is not None)
 
 
 def keyword_soft_score(reference: str, response: str) -> float:
@@ -265,6 +284,10 @@ class MockBackend(Backend):
         evolve_skill: bool,
         evolve_memory: bool,
     ) -> List[EditRecord]:
+        if edit_budget < 0:
+            raise ValueError("edit_budget must be nonnegative")
+        if edit_budget == 0:
+            return []
         ctx = (skill or "") + "\n" + (memory or "")
         edits: List[EditRecord] = []
         seen_text: set = set()
@@ -292,14 +315,18 @@ class MockBackend(Backend):
 
 def _extract_json(raw: str, kind: str):
     """Pull the first JSON object/array out of a possibly chatty CLI reply."""
-    pat = r"\{.*\}" if kind == "object" else r"\[.*\]"
-    m = re.search(pat, raw or "", re.DOTALL)
-    if not m:
-        return None
-    try:
-        return json.loads(m.group(0))
-    except Exception:
-        return None
+    opening, expected = ("{", dict) if kind == "object" else ("[", list)
+    decoder = json.JSONDecoder()
+    for position, character in enumerate(raw or ""):
+        if character != opening:
+            continue
+        try:
+            value, _ = decoder.raw_decode(raw, position)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(value, expected):
+            return value
+    return None
 
 
 def _task_guardrail(pairs) -> str:
@@ -349,12 +376,15 @@ class CliBackend(Backend):
     """
 
     name = "cli"
+    _uses_provider_usage = False
 
     def __init__(self, model: str = "", timeout: int = 180) -> None:
         self.model = model
         self.timeout = timeout
         self._tokens = 0
         self._cache: Dict[str, str] = {}
+        self._cache_locks: Dict[str, threading.Lock] = {}
+        self._cache_guard = threading.Lock()
         self.last_call_error = ""
         self.last_reflect_raw = ""
 
@@ -362,19 +392,39 @@ class CliBackend(Backend):
     def _call(self, prompt: str, *, max_tokens: int = 1024) -> str:
         raise NotImplementedError
 
+    def _record_call_error(self, message: str) -> None:
+        import logging
+        from skillopt_sleep.staging import redact_secrets
+        self.last_call_error = redact_secrets(message)
+        logging.getLogger("skillopt_sleep").warning("%s", self.last_call_error)
+
     def _cached_call(self, key: str, prompt: str, *, max_tokens: int = 1024) -> str:
+        with self._cache_guard:
+            lock = self._cache_locks.setdefault(key, threading.Lock())
+        # Coalesce one key without serializing calls for independent tasks.
+        with lock:
+            return self._cached_call_locked(key, prompt, max_tokens=max_tokens)
+
+    def _record_estimated_tokens(self, prompt: str, response: str) -> None:
+        if not self._uses_provider_usage:
+            self._tokens += len(prompt) // 4 + len(response) // 4
+
+    def _cached_call_locked(self, key: str, prompt: str, *, max_tokens: int) -> str:
         kind = key.split(":", 1)[0]
         ev = getattr(self, "evidence", None)
         if key in self._cache:
+            self.last_call_error = ""
             # cache hits log key-only (the full text is on the original miss event)
             if ev is not None:
                 ev.log("replay", "model_call", kind=kind, cache_hit=True, key=key,
                        phase=getattr(self, "evidence_phase", ""), backend=self.name,
                        model=self.model)
             return self._cache[key]
+        self.last_call_error = ""
         out = self._call(prompt, max_tokens=max_tokens)
-        self._tokens += len(prompt) // 4 + len(out) // 4
-        self._cache[key] = out
+        self._record_estimated_tokens(prompt, out)
+        if out:
+            self._cache[key] = out
         if ev is not None:
             ev.log("replay", "model_call", kind=kind, cache_hit=False, key=key,
                    phase=getattr(self, "evidence_phase", ""), backend=self.name,
@@ -449,7 +499,10 @@ class CliBackend(Backend):
         obj = _extract_json(raw, "object")
         if isinstance(obj, dict):
             try:
-                soft = float(obj.get("score", 0.0))
+                value = obj.get("score", 0.0)
+                soft = float(value)
+                if isinstance(value, bool) or not math.isfinite(soft) or not 0.0 <= soft <= 1.0:
+                    return 0.0, 0.0, "judge-invalid-score"
                 return (1.0 if soft >= 0.8 else 0.0), soft, str(obj.get("reason", ""))[:200]
             except (ValueError, TypeError):
                 pass
@@ -466,6 +519,10 @@ class CliBackend(Backend):
         evolve_skill: bool,
         evolve_memory: bool,
     ) -> List[EditRecord]:
+        if edit_budget < 0:
+            raise ValueError("edit_budget must be nonnegative")
+        if edit_budget == 0:
+            return []
         if not failures:
             return []
         target = "skill" if evolve_skill else "memory"
@@ -525,7 +582,7 @@ class CliBackend(Backend):
                 "Reply with ONLY the JSON array, no prose, no markdown fences."
             )
             raw = self._call(p, max_tokens=1024)
-            self._tokens += len(p) // 4 + len(raw) // 4
+            self._record_estimated_tokens(p, raw)
             if ev is not None:
                 ev.log("reflect", "exchange", target=target, attempt=attempt + 1,
                        backend=self.name, model=self.model,
@@ -745,7 +802,7 @@ class ClaudeCliBackend(CliBackend):
                     "Claude CLI returned a likely auth error: %s",
                     redact_secrets(combined[:200].replace("\n", " ")),
                 )
-                self.last_call_error = combined[:500]
+                self.last_call_error = redact_secrets(combined[:500])
                 return
 
     def _call(self, prompt: str, *, max_tokens: int = 1024) -> str:
@@ -761,6 +818,7 @@ class ClaudeCliBackend(CliBackend):
         #   --disallowedTools '*'     no tool use
         #   --exclude-dynamic-...     drop per-machine cwd/env/memory/git sections
         #   cwd=<clean temp>          no project CLAUDE.md
+        self.last_call_error = ""
         import tempfile
         cmd = [self.claude_path, "-p", "--output-format", "text"]
         if os.environ.get("ANTHROPIC_API_KEY"):
@@ -779,14 +837,10 @@ class ClaudeCliBackend(CliBackend):
         try:
             proc = subprocess.run(
                 cmd, capture_output=True, creationflags=_NO_WINDOW, text=True, timeout=self.timeout, cwd=clean_cwd,
-                input=prompt,
+                input=prompt, encoding="utf-8", errors="replace",
             )
         except Exception as exc:
-            import logging
-            self.last_call_error = f"Claude CLI spawn failed: {exc}"
-            logging.getLogger("skillopt_sleep").warning(
-                "Claude CLI could not be executed: %s", exc,
-            )
+            self._record_call_error(f"Claude CLI spawn failed: {exc}")
             return ""
         finally:
             try:
@@ -794,15 +848,20 @@ class ClaudeCliBackend(CliBackend):
                 shutil.rmtree(clean_cwd, ignore_errors=True)
             except OSError:
                 pass
+        if proc.returncode != 0:
+            self._record_call_error(f"Claude CLI exited {proc.returncode}: {(proc.stderr or '')[:500]}")
+            return ""
         out = (proc.stdout or "").strip()
         self._detect_cli_error(out, proc.stderr or "")
-        return out
+        return "" if self.last_call_error else out
 
     def attempt_with_tools(self, task, skill, memory, tools):
         # Expose a REAL, callable `search` tool (a shell shim that logs each
         # call) so the gbrain quick-answerer judge (tool_called=search) is
         # validated honestly: we detect the call from the shim's log, not from
         # a self-reported marker. Other tools are stubbed the same way.
+        tools = _safe_tool_names(tools)
+        self.last_call_error = ""
         import tempfile, shutil, stat
         work = tempfile.mkdtemp(prefix="skillopt_sleep_tools_")
         calllog = os.path.join(work, "_tool_calls.log")
@@ -812,7 +871,7 @@ class ClaudeCliBackend(CliBackend):
                 with open(shim, "w") as f:
                     f.write(
                         "#!/usr/bin/env bash\n"
-                        f'echo "{tname}" >> "{calllog}"\n'
+                        f'printf "%s\\n" {shlex.quote(tname)} >> {shlex.quote(calllog)}\n'
                         'echo "(search results: 3 relevant notes found; use them to answer)"\n'
                     )
                 os.chmod(shim, os.stat(shim).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
@@ -846,17 +905,18 @@ class ClaudeCliBackend(CliBackend):
             try:
                 proc = subprocess.run(
                     cmd, capture_output=True, creationflags=_NO_WINDOW, text=True, timeout=self.timeout, cwd=work,
-                    input=prompt,
+                    input=prompt, encoding="utf-8", errors="replace",
                 )
+                if proc.returncode != 0:
+                    self._record_call_error(f"Claude CLI exited {proc.returncode}: {(proc.stderr or '')[:500]}")
+                    return "", []
                 resp = (proc.stdout or "").strip()
                 self._detect_cli_error(resp, proc.stderr or "")
             except Exception as exc:
-                import logging
-                self.last_call_error = f"Claude CLI spawn failed: {exc}"
-                logging.getLogger("skillopt_sleep").warning(
-                    "Claude CLI could not be executed: %s", exc,
-                )
-                resp = ""
+                self._record_call_error(f"Claude CLI spawn failed: {exc}")
+                return "", []
+            if self.last_call_error:
+                return "", []
             self._tokens += len(prompt) // 4 + len(resp) // 4
             called: List[str] = []
             if os.path.exists(calllog):
@@ -1445,6 +1505,7 @@ class CodexCliBackend(CliBackend):
         """One codex exec attempt: returns the response text, or "" on
         timeout/exception/empty-output (with last_call_error set). ``_call``
         wraps this with retries so a transient failure is NOT silently scored 0."""
+        self.last_call_error = ""
         import tempfile
         out_path = tempfile.NamedTemporaryFile(
             prefix="codex_last_", suffix=".txt", delete=False
@@ -1480,6 +1541,9 @@ class CodexCliBackend(CliBackend):
             except Exception as exc:
                 self.last_call_error = f"codex exec failed: {exc}"
                 return ""
+            if proc.returncode != 0:
+                self._record_call_error(f"codex exec exited {proc.returncode}: {(proc.stderr or '')[:500]}")
+                return ""
             try:
                 with open(out_path, encoding="utf-8") as f:
                     out = f.read().strip()
@@ -1497,7 +1561,7 @@ class CodexCliBackend(CliBackend):
             # Surface it via last_call_error and return empty instead.
             if self.last_call_error:
                 return ""
-            return stdout or stderr
+            return stdout
         finally:
             try:
                 os.unlink(out_path)
@@ -1548,6 +1612,7 @@ class CodexCliBackend(CliBackend):
     def attempt_with_tools(self, task, skill, memory, tools):
         # Codex exec runs in a sandbox with shell access; expose the same real
         # `search` shim and let it run (workspace-write so the shim can log).
+        tools = _safe_tool_names(tools)
         import tempfile, shutil, stat
         work = tempfile.mkdtemp(prefix="skillopt_sleep_codextools_")
         calllog = os.path.join(work, "_tool_calls.log")
@@ -1569,7 +1634,7 @@ class CodexCliBackend(CliBackend):
                     with open(shim, "w") as f:
                         f.write(
                             "#!/usr/bin/env bash\n"
-                            f'echo "{tname}" >> "{calllog}"\n'
+                            f'printf "%s\\n" {shlex.quote(tname)} >> {shlex.quote(calllog)}\n'
                             'echo "(search results: 3 relevant notes found; use them to answer)"\n'
                         )
                     os.chmod(shim, os.stat(shim).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
@@ -1625,6 +1690,9 @@ class CodexCliBackend(CliBackend):
                 self.last_call_error = f"codex exec (tools) timed out after {self.timeout}s"
             except Exception as exc:  # noqa: BLE001
                 self.last_call_error = f"codex exec (tools) failed: {exc}"
+            if self.last_call_error or proc is None or proc.returncode != 0:
+                self._record_call_error(self.last_call_error or f"codex exec (tools) exited {proc.returncode}: {(proc.stderr or '')[:500]}")
+                return "", []
             resp = ""
             try:
                 with open(out_path, encoding="utf-8") as f:
@@ -1692,11 +1760,10 @@ class CopilotCliBackend(CliBackend):
     content. The plain-text / ``--silent`` modes do not reliably stream the
     response to stdout on all platforms, so JSONL is used for robust capture.
 
-    The call runs in a clean temp cwd with streaming disabled and tools allowed
-    (so non-interactive mode never blocks on a permission prompt); ``_call``'s
-    prompts ask for final-answer text only, so no tool use is expected there,
-    while ``attempt_with_tools`` exposes real, cross-platform callable shims in
-    the working directory for honest tool-call detection.
+    Text-only calls run in a clean temporary cwd with streaming disabled and an
+    empty tool allowlist. ``attempt_with_tools`` is a separate agent-capable path
+    with callable shims. Its workspace call log is functional evidence for trusted
+    tasks, not an authenticated execution record for hostile candidates.
 
     Startup overhead is minimised: each invocation points ``COPILOT_HOME`` at a
     dedicated, isolated config dir (no user ``mcp-config.json``, so the user's
@@ -1730,18 +1797,15 @@ class CopilotCliBackend(CliBackend):
 
     def _call(self, prompt: str, *, max_tokens: int = 1024) -> str:
         clean_cwd = tempfile.mkdtemp(prefix="skillopt_sleep_copilot_")
+        self.last_call_error = ""
         cmd = [
             self.copilot_path, "-p", prompt,
             "--output-format", "json",
             "--stream", "off",
             "--no-color",
             "--log-level", "none",
-            # ``--allow-all-tools`` is REQUIRED for non-interactive mode (it waives
-            # the approval prompt); it is the permission axis. Tool *visibility* is
-            # a separate axis: ``--available-tools`` restricts which tools the model
-            # can see at all. Scoping happens there, so we keep both.
-            "--allow-all-tools",
-            "--available-tools", os.environ.get("COPILOT_AVAILABLE_TOOLS", "bash"),
+            # Text-only attempt/judge/reflect calls must expose no agent tools.
+            "--available-tools=",
             "-C", clean_cwd,
         ]
         if not self.full_env:
@@ -1752,6 +1816,7 @@ class CopilotCliBackend(CliBackend):
         if self.model:
             cmd += ["--model", self.model]
         env = os.environ.copy()
+        env.pop("COPILOT_ALLOW_ALL", None)
         if self.copilot_home:
             env["COPILOT_HOME"] = self.copilot_home
         try:
@@ -1759,7 +1824,8 @@ class CopilotCliBackend(CliBackend):
                 cmd, capture_output=True, creationflags=_NO_WINDOW, text=True, timeout=self.timeout, cwd=clean_cwd,
                 encoding="utf-8", errors="replace", env=env,
             )
-        except Exception:
+        except Exception as exc:
+            self._record_call_error(f"Copilot CLI spawn failed: {exc}")
             return ""
         finally:
             try:
@@ -1767,7 +1833,13 @@ class CopilotCliBackend(CliBackend):
                 shutil.rmtree(clean_cwd, ignore_errors=True)
             except OSError:
                 pass
-        return self._parse_jsonl_response(proc.stdout or "")
+        if proc.returncode != 0:
+            self._record_call_error(f"Copilot CLI exited {proc.returncode}: {(proc.stderr or '')[:500]}")
+            return ""
+        response = self._parse_jsonl_response(proc.stdout or "")
+        if not response:
+            self._record_call_error("Copilot CLI returned an empty response")
+        return response
 
     @staticmethod
     def _parse_jsonl_response(raw: str) -> str:
@@ -1817,6 +1889,8 @@ class CopilotCliBackend(CliBackend):
         # backend, so the shims must be cross-platform — a bash `#!/usr/bin/env
         # bash` + chmod shim does NOT execute via `./tool` under PowerShell/cmd,
         # so on Windows we emit a `.cmd` batch shim instead.
+        tools = _safe_tool_names(tools)
+        self.last_call_error = ""
         import shutil
         import stat
         work = tempfile.mkdtemp(prefix="skillopt_sleep_copilottools_")
@@ -1841,7 +1915,7 @@ class CopilotCliBackend(CliBackend):
                     with open(shim, "w") as f:
                         f.write(
                             "#!/usr/bin/env bash\n"
-                            f'echo "{tname}" >> "{calllog}"\n'
+                            f'printf "%s\\n" {shlex.quote(tname)} >> {shlex.quote(calllog)}\n'
                             'echo "(search results: 3 relevant notes found; use them to answer)"\n'
                         )
                     os.chmod(shim, os.stat(shim).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
@@ -1901,9 +1975,13 @@ class CopilotCliBackend(CliBackend):
                     cmd, capture_output=True, creationflags=_NO_WINDOW, text=True, encoding="utf-8",
                     errors="replace", timeout=self.timeout, cwd=work, env=env,
                 )
+                if proc.returncode != 0:
+                    self._record_call_error(f"Copilot CLI (tools) exited {proc.returncode}: {(proc.stderr or '')[:500]}")
+                    return "", []
                 resp = self._parse_jsonl_response(proc.stdout or "")
-            except Exception:
-                resp = ""
+            except Exception as exc:
+                self._record_call_error(f"Copilot CLI (tools) spawn failed: {exc}")
+                return "", []
             self._tokens += len(prompt) // 4 + len(resp) // 4
             called: List[str] = []
             if os.path.exists(calllog):
@@ -2170,25 +2248,40 @@ class DualBackend(Backend):
         self.target = target
         self.optimizer = optimizer
         self.name = f"target={target.name}/optimizer={optimizer.name}"
+        self._active = optimizer
+
+    @property
+    def last_call_error(self):
+        return getattr(self._active, "last_call_error", "")
+
+    @property
+    def last_reflect_raw(self):
+        return getattr(self.optimizer, "last_reflect_raw", "")
 
     def attempt(self, task, skill, memory, sample_id: int = 0):
+        self._active = self.target
         return self.target.attempt(task, skill, memory, sample_id=sample_id)
 
     def attempt_with_tools(self, task, skill, memory, tools):
+        self._active = self.target
         return self.target.attempt_with_tools(task, skill, memory, tools)
 
     def judge(self, task, response):
         # local rule/exact judging needs no model; delegate to target which
         # already short-circuits those. For rubric judging use the optimizer.
         if task.reference_kind in {"rule", "exact"}:
+            self._active = self.target
             return self.target.judge(task, response)
+        self._active = self.optimizer
         return self.optimizer.judge(task, response)
 
     def reflect(self, failures, successes, skill, memory, **kw):
+        self._active = self.optimizer
         return self.optimizer.reflect(failures, successes, skill, memory, **kw)
 
     def _call(self, prompt, *, max_tokens=1024):
         # used by the LLM miner; prefer the optimizer (the "thinking" model)
+        self._active = self.optimizer
         return self.optimizer._call(prompt, max_tokens=max_tokens)  # type: ignore[attr-defined]
 
     def tokens_used(self):
@@ -2230,6 +2323,7 @@ class AzureOpenAIBackend(CliBackend):
     """
 
     name = "azure"
+    _uses_provider_usage = True
 
     _COMPAT_MODES = {"openai_compatible", "compat", "openai"}
     # Hosts the managed-identity (AAD bearer token) path may talk to. A custom
@@ -2298,12 +2392,16 @@ class AzureOpenAIBackend(CliBackend):
         return None
 
     def _is_azure_host(self) -> bool:
+        return self._is_azure_endpoint(self.endpoint)
+
+    @classmethod
+    def _is_azure_endpoint(cls, endpoint: str) -> bool:
         from urllib.parse import urlparse
-        parsed = urlparse(self.endpoint)
+        parsed = urlparse(endpoint)
         host = (parsed.hostname or "").lower()
         return (
             parsed.scheme.lower() == "https"
-            and host.endswith(self._AZURE_HOST_SUFFIXES)
+            and host.endswith(cls._AZURE_HOST_SUFFIXES)
         )
 
     def _get_client(self):
@@ -2320,6 +2418,7 @@ class AzureOpenAIBackend(CliBackend):
                     base_url=self.endpoint.rstrip("/"),
                     api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
                     max_retries=4,
+                    timeout=self.timeout,
                 )
             else:
                 # Security guard: the managed-identity path attaches an Azure AD
@@ -2340,6 +2439,7 @@ class AzureOpenAIBackend(CliBackend):
                 self._client = AzureOpenAI(
                     azure_endpoint=self.endpoint, azure_ad_token_provider=tp,
                     api_version=self.api_version, max_retries=4,
+                    timeout=self.timeout,
                 )
         return self._client
 
@@ -2455,12 +2555,17 @@ class AzureResponsesBackend(AzureOpenAIBackend):
         return self._token_provider
 
     def _client_for(self, endpoint: str):
+        if not self._is_azure_endpoint(endpoint) or any(
+            not self._is_azure_endpoint(value) for value in self.endpoints
+        ):
+            raise ValueError("azure-responses backend: refusing credentials for a non-Azure HTTPS endpoint")
         cl = self._clients.get(endpoint)
         if cl is None:
             from openai import AzureOpenAI
             cl = AzureOpenAI(
                 azure_endpoint=endpoint, azure_ad_token_provider=self._get_provider(),
                 api_version=self.api_version, max_retries=2,
+                timeout=self.timeout,
             )
             self._clients[endpoint] = cl
         return cl
@@ -2475,6 +2580,7 @@ class AzureResponsesBackend(AzureOpenAIBackend):
     def _call(self, prompt: str, *, max_tokens: int = 1024, retries: int = 5) -> str:
         import random as _r
         import time as _t
+        self.last_call_error = ""
         last = None
         base_ep = self._next_endpoint()           # this call's primary endpoint
         base_idx = self.endpoints.index(base_ep)
@@ -2494,12 +2600,14 @@ class AzureResponsesBackend(AzureOpenAIBackend):
                 except Exception:
                     pass
                 if text:
+                    self.last_call_error = ""
                     return text
                 last = "empty-response"
             except Exception as e:  # noqa: BLE001
                 last = e
             if attempt < retries - 1:
                 _t.sleep(min(8.0, (2 ** attempt) * 0.5) + _r.random() * 0.4)
+        self._record_call_error(f"Azure Responses call failed after {max(1, retries)} attempts: {last}")
         return ""
 
 
