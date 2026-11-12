@@ -8,5 +8,5 @@ Authoritative guide: `docs/guide/installation.md`. Summary (verified against `py
 - Console scripts: `skillopt-train`, `skillopt-eval`, `skillopt-sleep`.
 - Credentials: copy `.env.example` to `.env`, fill in, `set -a; source .env; set +a`. The `mock` Sleep backend needs none.
 - Verify: `python -m pytest -q`; `skillopt-sleep run --backend mock --help`.
-- Upgrade: `git fetch upstream && git merge upstream/main && pip install -e ".[dev]"`. Uninstall: `pip uninstall skillopt`.
+- Upgrade this fork from a clean, nondivergent checkout with `git fetch origin` and `git merge --ff-only origin/main`, then reinstall `pip install -e ".[dev]"`. Preserve active work; do not reset a dirty or divergent branch. Upstream synchronization is a separate operation. Uninstall: `pip uninstall skillopt`.
 - Agent plugins: see `plugins/README.md` and each `plugins/<name>/README.md`.

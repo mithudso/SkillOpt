@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Synthetic gate tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/test_gate.py", "-q"],
+      "cwd": "${workspaceFolder}",
+      "env": {"SKILLOPT_TEST_REAL_OPENCODE": "0", "SKILLOPT_TEST_REAL_OPENCODE_SOURCE": "0"}
+    }
+  ]
+}

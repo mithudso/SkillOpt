@@ -21,10 +21,22 @@ Optional extras: `.[webui]`, `.[docs]`, `.[claude]`, `.[qwen]`, `.[alfworld]`, `
 | Benchmark launchers | `scripts/run_alfworld.sh`, `scripts/run_searchqa.sh`, `scripts/run_spreadsheetbench.sh` (TODO: read each for required env) |
 
 ## Workflow
-1. Branch or work on `main` of the fork; keep changes additive vs upstream.
+1. Use a task branch/worktree in the personal fork. Keep unrelated work and active installations intact. Focused source repairs are allowed when explicitly requested.
 2. Make changes, run focused tests then the full suite.
 3. Append `memory.md` and `prompts.md` entries.
-4. Sync upstream: `git fetch upstream && git merge upstream/main`.
+4. Push a PR to personal `origin`, wait for its final checks, merge and verify remote-default content. Upstream synchronization is a separate operation; never write to the upstream repository.
+
+For source maintenance, use synthetic inputs, scratch HOME/data/model/auth and a
+process-tree network guard. Deny cached local inference as well as network access.
+Before Git fixture commits, use an explicit empty template, sanitize inherited
+`GIT_*` selectors and isolate global/system Git configuration. See the
+[runbook](runbooks/maintenance.md).
+
+Stage only task-owned new source paths, then refresh static navigation with
+`python scripts/doc_inventory.py`. `python scripts/doc_inventory.py --check`
+checks deterministic drift. The generated [environment-name inventory](environment-variables.md)
+records literal Python reads without their values; role-prefixed and external CLI
+variables still require the area-specific reference below.
 
 Extending: new benchmark -> `skillopt/envs/_template/` + register in `scripts/train.py` and `scripts/eval_only.py`; new backend -> `docs/guide/new-backend.md`; new Sleep source -> `skillopt_sleep/harvest_<name>.py` + `harvest_sources.py`.
 

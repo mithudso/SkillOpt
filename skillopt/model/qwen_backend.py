@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
+import math
 import os
 import threading
 import time
 import urllib.error
 import urllib.request
 import warnings
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from typing import Any
 
 from skillopt.model.common import (
@@ -85,7 +88,10 @@ def _parse_optional_float(value: Any) -> float | None:
     if value is None:
         return None
     raw = str(value).strip()
-    return float(raw) if raw else None
+    result = float(raw) if raw else None
+    if result is not None and not math.isfinite(result):
+        raise ValueError("Qwen temperature must be finite")
+    return result
 
 
 def _parse_int(value: Any, default: int) -> int:
@@ -241,6 +247,8 @@ def _post_chat_completion(
     timeout: float | None,
     config: QwenChatConfig,
 ) -> dict[str, Any]:
+    with _config_lock:
+        config = replace(config)
     headers = {"Content-Type": "application/json"}
     if config.api_key:
         headers["Authorization"] = f"Bearer {config.api_key}"
@@ -297,7 +305,8 @@ def _chat_messages_impl(
     deployment: str | None = None,
     timeout: float | None = None,
 ) -> tuple[Any, dict[str, int]]:
-    config = OPTIMIZER_CONFIG if role == "optimizer" else TARGET_CONFIG
+    with _config_lock:
+        config = replace(OPTIMIZER_CONFIG if role == "optimizer" else TARGET_CONFIG)
     token_limit = min(max_completion_tokens, config.max_tokens)
     # Reasoning models on some gateways (GPT-5.x, o-series) require
     # `max_completion_tokens` and reject the legacy `max_tokens`.
@@ -321,7 +330,9 @@ def _chat_messages_impl(
             payload["tool_choice"] = _json_safe(tool_choice)
 
     last_err: Exception | None = None
+    attempts = 0
     for attempt in range(retries):
+        attempts = attempt + 1
         try:
             data = _post_chat_completion(payload, timeout, config)
             choices = data.get("choices") or []
@@ -334,13 +345,41 @@ def _chat_messages_impl(
                 text = json.dumps(text, ensure_ascii=False)
             usage_info = _usage_from_payload(data)
             tracker.record(stage, usage_info["prompt_tokens"], usage_info["completion_tokens"])
+            logging.getLogger(__name__).info("qwen_chat %s request succeeded on attempt %d", role, attempts)
             if return_message:
                 return _compat_message_from_payload(message, choice0), usage_info
             return text, usage_info
         except Exception as e:  # noqa: BLE001
             last_err = e
-            time.sleep(min(2**attempt, 30))
-    raise RuntimeError(f"Qwen chat call failed after {retries} retries: {last_err}")
+            cause = e.__cause__
+            status = cause.code if isinstance(cause, urllib.error.HTTPError) else None
+            logging.getLogger(__name__).warning(
+                "qwen_chat %s request failed on attempt %d (%s, HTTP %s)",
+                role, attempts, type(e).__name__, status,
+            )
+            if status is not None and 400 <= status < 500 and status not in {408, 409, 429}:
+                break
+            if attempts < retries:
+                time.sleep(min(2**attempt, 30))
+    raise RuntimeError(f"Qwen chat call failed after {attempts} attempts: {last_err}")
+
+
+@contextmanager
+def _configuration_transaction():
+    """Publish both role settings and their environment only after validation."""
+    with _config_lock:
+        snapshots = [(config, vars(config).copy()) for config in (OPTIMIZER_CONFIG, TARGET_CONFIG)]
+        environment = {key: value for key, value in os.environ.items() if "QWEN_CHAT_" in key}
+        try:
+            yield
+        except Exception:
+            for config, original in snapshots:
+                vars(config).update(original)
+            for key in list(os.environ):
+                if "QWEN_CHAT_" in key and key not in environment:
+                    os.environ.pop(key, None)
+            os.environ.update(environment)
+            raise
 
 
 def configure_qwen_chat(
@@ -370,7 +409,7 @@ def configure_qwen_chat(
     target_thinking_mode: str | None = None,
     target_use_max_completion_tokens: bool | str | None = None,
 ) -> None:
-    with _config_lock:
+    with _configuration_transaction():
         if base_url is not None:
             os.environ["QWEN_CHAT_BASE_URL"] = str(base_url).strip()
         if api_key is not None:
@@ -445,13 +484,17 @@ def _update_config(
         os.environ[f"{env_prefix}_QWEN_CHAT_API_KEY"] = config.api_key
     if temperature is not None:
         raw = str(temperature).strip()
-        config.temperature = None if raw.lower() in _OMIT_SENTINELS else float(raw)
+        config.temperature = None if raw.lower() in _OMIT_SENTINELS else _parse_optional_float(raw)
         os.environ[f"{env_prefix}_QWEN_CHAT_TEMPERATURE"] = raw
     if timeout_seconds is not None:
         config.timeout_seconds = float(timeout_seconds)
+        if not math.isfinite(config.timeout_seconds) or config.timeout_seconds <= 0:
+            raise ValueError("Qwen timeout_seconds must be finite and positive")
         os.environ[f"{env_prefix}_QWEN_CHAT_TIMEOUT_SECONDS"] = str(timeout_seconds)
     if max_tokens is not None:
         config.max_tokens = int(max_tokens)
+        if config.max_tokens <= 0:
+            raise ValueError("Qwen max_tokens must be positive")
         os.environ[f"{env_prefix}_QWEN_CHAT_MAX_TOKENS"] = str(max_tokens)
     if enable_thinking is not None:
         config.enable_thinking = _parse_bool(enable_thinking)
@@ -460,6 +503,7 @@ def _update_config(
         config.thinking_mode = (
             THINKING_MODE_ENABLED if config.enable_thinking else THINKING_MODE_SERVER_DEFAULT
         )
+        os.environ[f"{env_prefix}_QWEN_CHAT_THINKING_MODE"] = config.thinking_mode
     if thinking_mode is not None:
         resolved = _parse_thinking_mode(thinking_mode)
         if enable_thinking is not None:

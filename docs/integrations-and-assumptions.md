@@ -19,10 +19,11 @@
 - Python >=3.10; Linux/macOS/Windows supported (Windows helpers: `plugins/run-sleep.ps1`, `.cmd`, `scheduler.py` schtasks).
 - Sleep reads local transcripts from each agent's home dir (e.g. `~/.claude`, `~/.codex`, `~/.cursor`, `~/.pi`) unless overridden via `--*-home` flags.
 - Research benchmarks need external datasets under `data/` (splits are tracked; raw data is not) and some need extra installs (alfworld, vllm, datasets).
-- Fork assumption: upstream-tracked files are never edited here.
+- Fork assumption: maintenance delivers only to the personal `origin`. Explicitly requested focused repairs may edit maintained fork sources. Upstream synchronization is separate and upstream stays read-only.
 - Plugins dsh needs Node (own `package.json`); the rest are Python/shell.
 - Model-written code runs in subprocesses for SpreadsheetBench (`skillopt/envs/spreadsheetbench/executor.py`): treat as untrusted-code execution.
 
 ## Environment differences
 - CI sets `SKILLOPT_TEST_REAL_OPENCODE=0` and `SKILLOPT_TEST_REAL_OPENCODE_SOURCE=0`.
 - Local-only paths ignored by git: `.env`, `.mcp.json`, `configs/local/`, `outputs/`, `.skillopt-sleep/`.
+- Static documentation generation uses Python AST and indexed paths; it does not import providers, inspect frozen data/model-prompt bodies, build embeddings or activate services.

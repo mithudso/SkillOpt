@@ -1,0 +1,105 @@
+{
+  "generator": "scripts/doc_inventory.py",
+  "totalTools": 17,
+  "tools": [
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_status",
+      "action": "status",
+      "description": "Show how many SkillOpt-Sleep nights have run and the latest staged proposal."
+    },
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_dry_run",
+      "action": "dry-run",
+      "description": "Preview a sleep cycle (harvest+mine+replay) without staging anything."
+    },
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_run",
+      "action": "run",
+      "description": "Run a full sleep cycle; stages a reviewed proposal. Nothing live changes until adopt."
+    },
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_adopt",
+      "action": "adopt",
+      "description": "Apply a reviewed legacy or per-skill staged proposal (backs up first)."
+    },
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_harvest",
+      "action": "harvest",
+      "description": "Debug: list the recurring tasks mined from recent sessions."
+    },
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_schedule",
+      "action": "schedule",
+      "description": "Install a nightly cron entry to run the sleep cycle automatically."
+    },
+    {
+      "adapter": "plugins/copilot/mcp_server.py",
+      "name": "sleep_unschedule",
+      "action": "unschedule",
+      "description": "Remove the nightly cron entry for a project."
+    },
+    {
+      "adapter": "plugins/copilot/skillopt/mcp_server.py",
+      "name": "skillopt_list_configs",
+      "description": "List the benchmark YAML configs under configs/ that can be passed as `config` to train/eval."
+    },
+    {
+      "adapter": "plugins/copilot/skillopt/mcp_server.py",
+      "name": "skillopt_train",
+      "description": "Run a SkillOpt reflective skill-optimization (training) loop on a benchmark config. Long-running; uses your model backend/budget."
+    },
+    {
+      "adapter": "plugins/copilot/skillopt/mcp_server.py",
+      "name": "skillopt_eval",
+      "description": "Evaluate a single skill markdown file on a dataset without training (scripts/eval_only.py)."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_status",
+      "action": "status",
+      "description": "Show how many SkillOpt-Sleep nights have run and the latest staged proposal."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_dry_run",
+      "action": "dry-run",
+      "description": "Preview a sleep cycle (harvest+mine+replay) without staging anything."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_run",
+      "action": "run",
+      "description": "Run a full sleep cycle; stages a reviewed proposal. Nothing live changes until adopt."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_adopt",
+      "action": "adopt",
+      "description": "Apply a reviewed legacy or per-skill staged proposal (backs up first)."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_harvest",
+      "action": "harvest",
+      "description": "Debug: list the recurring tasks mined from recent Devin sessions."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_schedule",
+      "action": "schedule",
+      "description": "Install a nightly cron entry to run the sleep cycle automatically."
+    },
+    {
+      "adapter": "plugins/devin/mcp_server.py",
+      "name": "sleep_unschedule",
+      "action": "unschedule",
+      "description": "Remove the nightly cron entry for a project."
+    }
+  ]
+}

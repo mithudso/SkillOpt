@@ -2697,13 +2697,14 @@ class TestClaudeCliBackendBare(unittest.TestCase):
                 stderr = ""
                 returncode = 0
             return FakeProc()
-        with unittest.mock.patch.dict(os.environ, {}, clear=False):
-            with unittest.mock.patch("subprocess.run", side_effect=fake_run):
-                result = be._call("test prompt")
-        # The error string is returned as output (backwards-compat)
-        self.assertIn("Not logged in", result)
-        # But it's also recorded for detection
+        with self.assertLogs("skillopt_sleep", level="WARNING") as logs:
+            with unittest.mock.patch.dict(os.environ, {}, clear=False):
+                with unittest.mock.patch("subprocess.run", side_effect=fake_run):
+                    result = be._call("test prompt")
+        # An authentication failure is diagnostic evidence, never an answer.
+        self.assertEqual(result, "")
         self.assertIn("Not logged in", getattr(be, "last_call_error", ""))
+        self.assertTrue(any("auth error" in row for row in logs.output))
 
     def test_spawn_failure_sets_last_call_error(self):
         """When subprocess.run raises FileNotFoundError, _call must set

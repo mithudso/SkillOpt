@@ -1,0 +1,276 @@
+{
+  "generator": "scripts/doc_inventory.py",
+  "scope": "static Python transport sites; aliases/dynamic calls need manual review",
+  "calls": [
+    {
+      "path": "docs/sleep/examples/runner.py",
+      "line": 100,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "docs/sleep/examples/watchdog.py",
+      "line": 32,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/copilot/mcp_server.py",
+      "line": 249,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/copilot/skillopt/mcp_server.py",
+      "line": 89,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/devin/judge.py",
+      "line": 97,
+      "call": "urllib.request.urlopen"
+    },
+    {
+      "path": "plugins/devin/mcp_server.py",
+      "line": 211,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/devin/mcp_server.py",
+      "line": 285,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/dsh/scripts/sleep.py",
+      "line": 92,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/dsh/scripts/sleep.py",
+      "line": 61,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "plugins/openclaw/skillopt_sleep_openclaw.py",
+      "line": 57,
+      "call": "urllib.request.urlopen"
+    },
+    {
+      "path": "plugins/openclaw/skillopt_sleep_openclaw.py",
+      "line": 75,
+      "call": "urllib.request.urlopen"
+    },
+    {
+      "path": "scripts/doc_inventory.py",
+      "line": 33,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/envs/officeqa/tool_runtime.py",
+      "line": 481,
+      "call": "urlopen"
+    },
+    {
+      "path": "skillopt/envs/spreadsheetbench/codegen_agent.py",
+      "line": 397,
+      "call": "client.responses.create"
+    },
+    {
+      "path": "skillopt/envs/spreadsheetbench/codegen_agent.py",
+      "line": 428,
+      "call": "client.chat.completions.create"
+    },
+    {
+      "path": "skillopt/envs/spreadsheetbench/executor.py",
+      "line": 113,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/envs/spreadsheetbench/react_agent.py",
+      "line": 287,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/azure_openai.py",
+      "line": 264,
+      "call": "subprocess.check_output"
+    },
+    {
+      "path": "skillopt/model/azure_openai.py",
+      "line": 385,
+      "call": "client.responses.create"
+    },
+    {
+      "path": "skillopt/model/azure_openai.py",
+      "line": 415,
+      "call": "client.chat.completions.create"
+    },
+    {
+      "path": "skillopt/model/azure_openai.py",
+      "line": 477,
+      "call": "client.responses.create"
+    },
+    {
+      "path": "skillopt/model/azure_openai.py",
+      "line": 504,
+      "call": "client.chat.completions.create"
+    },
+    {
+      "path": "skillopt/model/claude_backend.py",
+      "line": 278,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/codex_backend.py",
+      "line": 338,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/codex_harness.py",
+      "line": 931,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/codex_harness.py",
+      "line": 1177,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/codex_harness.py",
+      "line": 1385,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/codex_harness.py",
+      "line": 1813,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/codex_harness.py",
+      "line": 1933,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/copilot_backend.py",
+      "line": 128,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt/model/minimax_backend.py",
+      "line": 183,
+      "call": "urllib.request.urlopen"
+    },
+    {
+      "path": "skillopt/model/openai_compatible_backend.py",
+      "line": 200,
+      "call": "client.chat.completions.create"
+    },
+    {
+      "path": "skillopt/model/qwen_backend.py",
+      "line": 254,
+      "call": "urllib.request.urlopen"
+    },
+    {
+      "path": "skillopt_sleep/adapters/superpowers.py",
+      "line": 869,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/adapters/superpowers.py",
+      "line": 1061,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/adapters/superpowers.py",
+      "line": 1213,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/adapters/superpowers.py",
+      "line": 1199,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 780,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 1118,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 1758,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 2070,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 658,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 847,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 1466,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 1613,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 1900,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 2380,
+      "call": "client.chat.completions.create"
+    },
+    {
+      "path": "skillopt_sleep/backend.py",
+      "line": 2486,
+      "call": "client.responses.create"
+    },
+    {
+      "path": "skillopt_sleep/scheduler.py",
+      "line": 26,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/scheduler.py",
+      "line": 34,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/scheduler.py",
+      "line": 72,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/scheduler.py",
+      "line": 81,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_sleep/scheduler.py",
+      "line": 89,
+      "call": "subprocess.run"
+    },
+    {
+      "path": "skillopt_webui/app.py",
+      "line": 218,
+      "call": "subprocess.Popen"
+    }
+  ]
+}

@@ -66,17 +66,20 @@ def grade(item: dict, prediction: str, *, default_grader: str, pass_threshold: f
 
 def _rollout_one(item: dict, skill_content: str, *, prediction_dir: Path, max_completion_tokens: int,
                  default_grader: str, pass_threshold: float, judge_max_tokens: int,
-                 answer_preamble: str = DEFAULT_ANSWER_PREAMBLE) -> dict:
+                 answer_preamble: str = DEFAULT_ANSWER_PREAMBLE, exec_timeout: int = 300) -> dict:
     user = f"{answer_preamble}\n\n{item['question']}" if answer_preamble else item["question"]
     try:
         prediction, _usage = chat_target(system=skill_content, user=user,
-                                         max_completion_tokens=max_completion_tokens)
+                                         max_completion_tokens=max_completion_tokens, timeout=exec_timeout)
     except Exception as exc:  # keep the batch alive; a failed call scores 0
         prediction = ""
         hard, soft, reason = 0, 0.0, f"target call failed: {exc}"
     else:
-        hard, soft, reason = grade(item, prediction, default_grader=default_grader,
-                                   pass_threshold=pass_threshold, judge_max_tokens=judge_max_tokens)
+        try:
+            hard, soft, reason = grade(item, prediction, default_grader=default_grader,
+                                       pass_threshold=pass_threshold, judge_max_tokens=judge_max_tokens)
+        except Exception as exc:
+            hard, soft, reason = 0, 0.0, f"judge call failed: {exc}"
 
     task_dir = prediction_dir / str(item["id"])
     task_dir.mkdir(parents=True, exist_ok=True)
@@ -113,7 +116,7 @@ def _rollout_one(item: dict, skill_content: str, *, prediction_dir: Path, max_co
 def run_batch(*, items: list[dict], skill_content: str, out_root: str, workers: int = 4,
               max_completion_tokens: int = 4096, default_grader: str = "auto",
               pass_threshold: float = 0.7, judge_max_tokens: int = 1024,
-              answer_preamble: str = DEFAULT_ANSWER_PREAMBLE) -> list[dict]:
+              answer_preamble: str = DEFAULT_ANSWER_PREAMBLE, exec_timeout: int = 300) -> list[dict]:
     os.makedirs(out_root, exist_ok=True)
     prediction_dir = Path(out_root, "predictions")
 
@@ -121,7 +124,7 @@ def run_batch(*, items: list[dict], skill_content: str, out_root: str, workers: 
         return _rollout_one(item, skill_content, prediction_dir=prediction_dir,
                             max_completion_tokens=max_completion_tokens, default_grader=default_grader,
                             pass_threshold=pass_threshold, judge_max_tokens=judge_max_tokens,
-                            answer_preamble=answer_preamble)
+                            answer_preamble=answer_preamble, exec_timeout=exec_timeout)
 
     with ThreadPoolExecutor(max_workers=max(1, int(workers))) as pool:
         results = list(pool.map(_one, items))

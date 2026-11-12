@@ -26,9 +26,11 @@ skillopt-sleep run --backend mock        # no credentials required
 
 1. Python >=3.10; ruff line length 120, rules E/F/I/W.
 2. Tests are hermetic; live tests only with `SKILLOPT_TEST_REAL_OPENCODE=1`.
-3. Fork of `microsoft/SkillOpt`: add new files only, do not edit upstream-tracked files.
-4. Sync: `git fetch upstream && git merge upstream/main`.
+3. Fork of `microsoft/SkillOpt`: focused repairs to this personal fork's maintained sources are allowed when explicitly requested.
+4. Maintenance fetches and delivers only to personal `origin`; upstream synchronization is separately scoped and upstream remains read-only.
 5. Never commit `.env`, `.mcp.json`, `outputs/`, `.skillopt-sleep/`.
 6. Sleep never changes live skills without `adopt` or explicit `--auto-adopt`.
 7. New benchmark: copy `skillopt/envs/_template/`; new backend: `docs/guide/new-backend.md`.
 8. Keep `memory.md` and `prompts.md` current.
+9. Preserve frozen data, prompts, checkpoints, private profiles and live installations. Use synthetic fixtures and scratch state for verification; block process-tree network access and local inference.
+10. Stage task-owned new source paths, then regenerate `python scripts/doc_inventory.py`; verify `python scripts/doc_inventory.py --check`. Start at `docs/wiki/index.md` for current references.

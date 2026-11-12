@@ -30,6 +30,7 @@ class SkillTaskAdapter(EnvAdapter):
         pass_threshold: float = 0.7,
         judge_max_tokens: int = 1024,
         answer_preamble: str | None = None,
+        exec_timeout: int = 300,
     ) -> None:
         self.workers = workers
         self.analyst_workers = analyst_workers
@@ -42,6 +43,9 @@ class SkillTaskAdapter(EnvAdapter):
             raise ValueError(f"skilltask grader must be auto|exact|contains|judge, got {grader!r}")
         self.pass_threshold = float(pass_threshold)
         self.judge_max_tokens = int(judge_max_tokens)
+        self.exec_timeout = int(exec_timeout)
+        if self.exec_timeout <= 0:
+            raise ValueError("skilltask exec_timeout must be positive")
         # None = default note; "" = send the task input unchanged.
         self.answer_preamble = DEFAULT_ANSWER_PREAMBLE if answer_preamble is None else str(answer_preamble)
         self.dataloader = SkillTaskDataLoader(
@@ -84,6 +88,7 @@ class SkillTaskAdapter(EnvAdapter):
             pass_threshold=self.pass_threshold,
             judge_max_tokens=self.judge_max_tokens,
             answer_preamble=self.answer_preamble,
+            exec_timeout=self.exec_timeout,
         )
 
     def get_task_types(self) -> list[str]:

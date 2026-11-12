@@ -269,7 +269,7 @@ def _run_claude_print(*, system: str, prompt: str, model: str, tools: list[dict[
             cmd.extend(["--effort", effort])
         structured_output = bool(return_message)
         if structured_output:
-            cmd.extend(["--schema", _assistant_message_schema_wrapper()])
+            cmd.extend(["--json-schema", _assistant_message_schema_wrapper()])
         # Feed the prompt via stdin (and the system prompt via a file, above), not
         # argv: on Windows the whole command line is capped at ~32 KB and large
         # optimizer prompts / grown skills overflow it → [WinError 206]. Pin UTF-8
@@ -316,7 +316,13 @@ def _call_messages(messages: list[dict[str, Any]], max_completion_tokens: int, r
             raw_text, payload, usage_info = _run_claude_print(system=system, prompt=prompt, model=model, tools=tools, tool_choice=tool_choice, return_message=return_message, timeout=timeout, attachments=attachments)
             tracker.record(stage, usage_info["prompt_tokens"], usage_info["completion_tokens"])
             if return_message:
-                return _compat_message_from_payload(payload.get("result", payload)), usage_info
+                structured = payload.get("structured_output", payload.get("result", payload))
+                if isinstance(structured, str):
+                    try:
+                        structured = json.loads(structured)
+                    except (ValueError, TypeError):
+                        pass
+                return _compat_message_from_payload(structured), usage_info
             return raw_text, usage_info
         except Exception as e:  # noqa: BLE001
             last_err = e
